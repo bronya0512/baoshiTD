@@ -95,8 +95,26 @@
       var code = r.body && typeof r.body.code === 'number' ? r.body.code : r.status;
       var msg  = r.body && typeof r.body.message === 'string' ? r.body.message : '';
       var data = r.body && 'data' in r.body ? r.body.data : r.body;
+      // ===== 单点登录 (SSO) 互斥自动处理 =====
+      // 后端返回 401 + code===40101 / status==='kicked' 明确表示该账号已在别处登录 → 本地立即登出 + toast
+      if (r.status === 401 && (code === 40101 || (r.body && r.body.status === 'kicked'))) {
+        log('w', 'SSO: 检测到别处登录互斥，自动登出本地账号。message=' + msg);
+        try { accountLogout(); } catch (_) { /* ignore */ }
+        toast('账号在其他地方登录，已自动下线（单点登录）', 'er');
+        setMsg(msg || '您的账号在别处登录，当前会话已结束。', true);
+        refreshHUD();
+        // 仍然把失败结果返回给调用者
+      }
       if (r.ok && (code === 0 || code >= 200 && code < 300)) {
         return { ok: true, status: r.status, data: data, code: code, message: msg };
+      }
+      // 存档乐观锁冲突 409 code=40901：给用户明确提示，不要吞错误
+      if (code === 40901 || (r.body && r.body.status === 'conflict_save')) {
+        toast('存档已在其他页面更新：' + (msg || '请先读档再保存'), 'er');
+        setMsg(msg || '双开冲突：另一页面/浏览器已修改存档，当前保存已拦截。请点「读档」同步后再操作。', true);
+        log('w', 'SAVE_CONFLICT(40901): ' + msg);
+        // 清空本地已知版本戳（防止下次循环使用）
+        _knownSaveUpdatedAt = '';
       }
       // 错误
       var err = new Error(msg || ('HTTP ' + r.status));
@@ -122,9 +140,17 @@
   function accountInfo()   { return _acc; }
   function accountLoggedIn() { return !!_acc; }
 
+  // ===== 存档乐观锁 (SSO 双开防覆盖) =====
+  // 每次 GET /api/save 读档成功 或 POST /api/save 保存成功时，刷新成服务器返回的 updatedAt (ISO字符串)
+  // 初始值 '' = 从未同步过服务器存档版本（意味着本地第一次保存时应该带 ifNoneExist / ifMatchUpdatedAt=ZERO）
+  var _knownSaveUpdatedAt = '';
+  // 登出/换号时必须清空，避免串号
+  function _resetSaveVersion() { _knownSaveUpdatedAt = ''; }
+
   function accountSetLoggedIn(info) {
     _acc = info ? { uid: Number(info.uid) || 0, username: String(info.username || ''), token: String(info.token || '') } : null;
     accountSaveToStore(_acc);
+    _resetSaveVersion(); // 登录状态变化（登出/换号/新登录）都必须重置乐观锁版本戳，避免串号 / 用旧版本戳去匹配当前账号
     refreshAccountChip();
   }
 
@@ -206,6 +232,8 @@
     log('i', '已退出登录。');
     closeAccountModal();
   }
+  // 别名：SSO 自动被踢下线时 api() 内部直接调用
+  var accountLogout = doLogout;
 
   // ---------- Save / Load (V3-1) ----------
   // 构造存档 payload：保存游戏中所有跨波持久字段
@@ -288,14 +316,29 @@
       setMsg('战斗中禁止写入存档，请等待波末或结束', true);
       return Promise.resolve({ ok: false });
     }
-    var body = JSON.stringify(buildSavePayload(!!isAuto));
+    // ===== 构造存档请求体 + 乐观锁版本戳 =====
+    // - _knownSaveUpdatedAt === '' : 本地从未读档过，期望服务器没有该账号的存档（ifMatchUpdatedAt='ZERO' / ifNoneExist=true）
+    // - _knownSaveUpdatedAt 非空   : 把上次服务器返回的 updatedAt 带回去，毫秒级比对（防止双开覆盖）
+    var payload = buildSavePayload(!!isAuto);
+    if (!_knownSaveUpdatedAt) {
+      payload.ifNoneExist = false;          // 兼容字段（后端 IfMatchUpdatedAt=ZERO 优先）
+      payload.ifMatchUpdatedAt = 'ZERO';
+    } else {
+      payload.ifMatchUpdatedAt = _knownSaveUpdatedAt;
+    }
+    var body = JSON.stringify(payload);
     return api('/api/save', { method: 'POST', body: body }).then(function (r) {
       if (r.ok && r.data && r.data.saved) {
+        // 保存成功：刷新成服务器最新的 updatedAt（后端保证返回的是真实写入时的时间戳，ms 级一致）
+        if (r.data.updatedAt) {
+          _knownSaveUpdatedAt = (typeof r.data.updatedAt === 'string') ? r.data.updatedAt : new Date(r.data.updatedAt).toISOString();
+        }
         var label = isAuto ? '自动保存成功' : '保存成功';
         toast(label + '（波 ' + state.waveIndex + '）', 'ok');
-        log('s', label + '：' + (r.data.updatedAt ? new Date(r.data.updatedAt).toLocaleString() : ''));
+        log('s', label + '：' + (r.data.updatedAt ? new Date(r.data.updatedAt).toLocaleString() : '') + '  version=' + _knownSaveUpdatedAt);
         return { ok: true };
       } else {
+        // 409 冲突已经在 api() 统一处理并清空 _knownSaveUpdatedAt，这里无需重复
         toast((isAuto ? '自动保存失败：' : '保存失败：') + (r.message || ('HTTP ' + r.status)), 'er');
         return { ok: false };
       }
@@ -414,14 +457,20 @@
         return { ok: false };
       }
       if (!r.data) {
+        // 账号下没有存档：本地也记成"空" → 接下来 save 会走 ifMatchUpdatedAt=ZERO 首次保存
+        _knownSaveUpdatedAt = '';
         toast('当前账号没有存档', 'info');
         return { ok: false };
       }
       var result = applySaveRecord(r.data);
       if (result.ok) {
+        // 读档成功：把服务器存档的 updatedAt 记录下来，下次保存就带着它乐观锁
+        if (r.data.updatedAt) {
+          _knownSaveUpdatedAt = (typeof r.data.updatedAt === 'string') ? r.data.updatedAt : new Date(r.data.updatedAt).toISOString();
+        }
         toast('读档成功（波 ' + state.waveIndex + ' ' + state.phase + '）', 'ok');
         log('s', '已载入存档：' + (r.data.updatedAt ? new Date(r.data.updatedAt).toLocaleString() : '') +
-          '  phase=' + state.phase + '  波=' + state.waveIndex);
+          '  phase=' + state.phase + '  波=' + state.waveIndex + '  version=' + _knownSaveUpdatedAt);
       } else {
         toast('读档失败：' + (result.msg || '数据异常'), 'er');
       }
@@ -1544,6 +1593,8 @@
     _grid:  function () { return state.grid; },
     _forceReserveOne: reserveOne,
     _forceDemolish: demolishWall,
-    _forcePlace: placeCandidate
+    _forcePlace: placeCandidate,
+    _dbgKnownVersion: function () { return _knownSaveUpdatedAt; }, // SSO + 乐观锁测试：获取当前 JS 内存里存档 known updatedAt
+    _dbgSetKnownVersion: function (v) { _knownSaveUpdatedAt = v || ''; } // SSO 冲突测试：强制设置 known version 模拟"拿着旧版本戳写"
   };
 })();

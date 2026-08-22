@@ -50,11 +50,13 @@ func AuthRegister(c *gin.Context) {
 		return
 	}
 	a := store.CreateAccount(uname, hp)
-	token, exp, err := middleware.GenerateJWT(a.ID, a.Username, 7)
+	token, exp, jti, err := middleware.GenerateJWT(a.ID, a.Username, 7)
 	if err != nil {
 		response.ServerError(c, "生成 token 失败: "+err.Error())
 		return
 	}
+	// 单点登录：注册成功即建立一个有效会话；后续再登录会覆盖 jti 把这个会话踢掉
+	store.SetActiveSession(a.ID, jti)
 	resp := model.TokenResponse{UID: a.ID, Username: a.Username, Token: token, Expires: exp}
 	response.Created(c, resp)
 }
@@ -72,11 +74,15 @@ func AuthLogin(c *gin.Context) {
 		response.Unauthorized(c, "用户名或密码错误")
 		return
 	}
-	token, exp, err := middleware.GenerateJWT(a.ID, a.Username, 7)
+	token, exp, jti, err := middleware.GenerateJWT(a.ID, a.Username, 7)
 	if err != nil {
 		response.ServerError(c, "生成 token 失败: "+err.Error())
 		return
 	}
+	// 单点登录核心：每次登录生成新 jti，覆盖 Account.ActiveSessionJti
+	// 此时旧浏览器 Tab 中的旧 JWT 在下次调 /api/save 等受保护接口时，
+	// AuthRequired 比对 jti 不一致 → 返回 40101 kicked → 前端自动 logout + toast
+	store.SetActiveSession(a.ID, jti)
 	resp := model.TokenResponse{UID: a.ID, Username: a.Username, Token: token, Expires: exp}
 	response.Success(c, resp)
 }

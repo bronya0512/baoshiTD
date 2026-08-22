@@ -9,10 +9,12 @@ import (
 
 // Account 玩家账号（v3-1 MVP 先内存存，后续替换为SQLite users表）
 type Account struct {
-	ID           uint      `json:"uid"`
-	Username     string    `json:"username"`
-	PasswordHash string    `json:"-"` // 永不序列化
-	CreatedAt    time.Time `json:"created_at"`
+	ID               uint      `json:"uid"`
+	Username         string    `json:"username"`
+	PasswordHash     string    `json:"-"` // 永不序列化
+	CreatedAt        time.Time `json:"created_at"`
+	ActiveSessionJti string    `json:"-"` // 单点登录：当前唯一有效JWT的jti（新登录会覆盖，旧token立刻失效）
+	ActiveSessionAt  time.Time `json:"-"` // 该jti发放时间（调试用）
 }
 
 // RegisterRequest 注册请求
@@ -38,15 +40,15 @@ type TokenResponse struct {
 // GameSaveRecord 游戏存档（按 uid 唯一 => MVP 每个账号 1 个当前存档 + 1 个 autosave 也合成这一个，version递增）
 // 后续 SQLite save表：uid PK FK, phase luckLevel gold baseHP waveIndex TEXT(tiles JSON) TEXT(grid JSON) TEXT(buffs JSON) isAuto updatedAt
 type GameSaveRecord struct {
-	Version        int         `json:"version"`      // 存档格式版本 (1)
-	Phase          string      `json:"phase"`        // MENU / PREPARE / RESERVE / BATTLE / WAVEEND / WIN / LOSE
+	Version        int         `json:"version"` // 存档格式版本 (1)
+	Phase          string      `json:"phase"`   // MENU / PREPARE / RESERVE / BATTLE / WAVEEND / WIN / LOSE
 	LuckLevel      int         `json:"luckLevel"`
 	Gold           int         `json:"gold"`
 	BaseHP         int         `json:"baseHP"`
 	BaseMaxHP      int         `json:"baseMaxHP,omitempty"`
 	WaveIndex      int         `json:"waveIndex"`
-	Tiles          []uint8     `json:"tiles,omitempty"`   // 地图tile快照；MarshalJSON转为int数组（Go默认[]uint8→base64不可读）
-	Grid           interface{} `json:"grid,omitempty"`    // 前端grid数组对象 (含塔instId/towerCfgId/wall等)
+	Tiles          []uint8     `json:"tiles,omitempty"` // 地图tile快照；MarshalJSON转为int数组（Go默认[]uint8→base64不可读）
+	Grid           interface{} `json:"grid,omitempty"`  // 前端grid数组对象 (含塔instId/towerCfgId/wall等)
 	ActiveBuffs    interface{} `json:"activeBuffs,omitempty"`
 	PlacementUsed  int         `json:"placementUsed,omitempty"`
 	PlacementTotal int         `json:"placementTotal,omitempty"`

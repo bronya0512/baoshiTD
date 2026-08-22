@@ -34,6 +34,15 @@ type SavePOSTBody struct {
 	PlacementUsed  int         `json:"placementUsed"`
 	PlacementTotal int         `json:"placementTotal"`
 	IsAuto         bool        `json:"isAuto"`
+
+	// === 双开覆盖写防护（存档乐观锁）===
+	// ifMatchUpdatedAt: 客户端上次从服务器读到（或上次 save 返回）的存档 updatedAt（ISO 字符串）。
+	//  - 若客户端从无存档开始保存，传空字符串 或 "ZERO"（走 expectZero=true）
+	//  - 服务器拿该时间戳与服务器现存存档的 UpdatedAt 按毫秒级比对
+	//  - 不一致则返回 40901 冲突（说明在此期间另一 Tab/浏览器已写入过），前端提示读档
+	IfMatchUpdatedAt string `json:"ifMatchUpdatedAt,omitempty"`
+	// ifNoneExist: 与上面等价，true=期望存档不存在
+	IfNoneExist bool `json:"ifNoneExist,omitempty"`
 }
 
 // SaveGetResponse GET返回：无存档 data=null，否则 SaveRecord 数据
@@ -44,8 +53,8 @@ type SaveGetResponse struct {
 
 // saveSetResponse POST成功返回
 type saveSetResponse struct {
-	Saved   bool      `json:"saved"`
-	IsAuto  bool      `json:"isAuto"`
+	Saved     bool      `json:"saved"`
+	IsAuto    bool      `json:"isAuto"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
@@ -83,7 +92,6 @@ func SaveSave(c *gin.Context) {
 		return
 	}
 	now := time.Now().UTC()
-	// 对Tiles不做长度校验（前端决定）
 	rec := &model.GameSaveRecord{
 		Version:        body.Version,
 		Phase:          body.Phase,
@@ -101,10 +109,44 @@ func SaveSave(c *gin.Context) {
 		SavedAt:        now,
 		UpdatedAt:      now,
 	}
-	store.SetSave(uid, rec)
+	// === 乐观锁解析 & 检查 ===
+	// 规则优先级：
+	//   1. body.IfNoneExist=true                   → 期望服务器存档不存在 (expectZero)
+	//   2. body.IfMatchUpdatedAt in ["","ZERO"]    → 期望服务器存档不存在 (同上，客户端友好写法)
+	//   3. body.IfMatchUpdatedAt = RFC3339 字符串   → 解析成时间戳，与服务器现存存档比对毫秒级相等
+	//   4. 未提供 / 解析失败                        → 兼容模式直接写（旧前端/契约测试）
+	var expectUpdatedAt time.Time
+	expectZero := false
+	if body.IfNoneExist {
+		expectZero = true
+	} else if body.IfMatchUpdatedAt != "" {
+		if body.IfMatchUpdatedAt == "ZERO" {
+			expectZero = true
+		} else {
+			if parsed, pe := time.Parse(time.RFC3339Nano, body.IfMatchUpdatedAt); pe == nil {
+				expectUpdatedAt = parsed
+			} else if parsed2, pe2 := time.Parse(time.RFC3339, body.IfMatchUpdatedAt); pe2 == nil {
+				expectUpdatedAt = parsed2
+			}
+			// 解析失败 → 视为未提供（兼容性 fallback），不报错，走兼容模式
+		}
+	}
+	ok, conflict, serverAt := store.SetSaveWithCheck(uid, rec, expectUpdatedAt, expectZero)
+	if conflict {
+		msg := "存档版本冲突（该账号的存档已在其他页面/浏览器更新过，请先读档）。"
+		if !serverAt.IsZero() {
+			msg += "服务器存档时间: " + serverAt.UTC().Format(time.RFC3339)
+		}
+		response.SaveVersionConflict(c, msg)
+		return
+	}
+	if !ok {
+		response.ServerError(c, "写入存档失败（内部状态错误）")
+		return
+	}
 	response.Success(c, saveSetResponse{
 		Saved:     true,
 		IsAuto:    body.IsAuto,
-		UpdatedAt: now,
+		UpdatedAt: serverAt,
 	})
 }

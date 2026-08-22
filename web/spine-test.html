@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spine 3.8 资产测试</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #1a1d29;
+            color: #e8e8e8;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            min-height: 100vh;
+        }
+        .header {
+            padding: 20px 30px;
+            background: #252836;
+            border-bottom: 1px solid #363a4d;
+        }
+        .header h1 { font-size: 1.4em; margin-bottom: 8px; }
+        .header p { color: #8b8fa3; font-size: 0.9em; }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .asset-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .asset-tabs button {
+            background: #252836;
+            color: #e8e8e8;
+            border: 1px solid #363a4d;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.2s;
+        }
+        .asset-tabs button:hover { background: #363a4d; }
+        .asset-tabs button.active {
+            background: #4a6cf7;
+            border-color: #4a6cf7;
+        }
+        .asset-tabs button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .status-bar {
+            background: #252836;
+            border-radius: 8px;
+            padding: 14px 18px;
+            margin-bottom: 16px;
+            font-size: 0.85em;
+            line-height: 1.6;
+        }
+        .status-bar .status-line { margin: 2px 0; }
+        .status-bar .label { color: #8b8fa3; }
+        .status-bar .ok { color: #4ade80; }
+        .status-bar .warn { color: #fbbf24; }
+        .status-bar .err { color: #f87171; }
+
+        .canvas-container {
+            background: #0f1117;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            border: 1px solid #363a4d;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 600px;
+        }
+
+        .control-panel {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+        .control-panel button {
+            background: #4a6cf7;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        .control-panel button:hover { background: #3b5ce0; }
+        .control-panel button:disabled {
+            background: #363a4d;
+            cursor: not-allowed;
+        }
+        .control-panel select, .control-panel input {
+            background: #252836;
+            color: #e8e8e8;
+            border: 1px solid #363a4d;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.9em;
+        }
+
+        .log-panel {
+            margin-top: 16px;
+            background: #0f1117;
+            border-radius: 8px;
+            padding: 14px;
+            font-family: "Consolas", "Monaco", monospace;
+            font-size: 0.8em;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #363a4d;
+        }
+        .log-panel .log-entry { margin: 2px 0; }
+        .log-panel .log-info { color: #8b8fa3; }
+        .log-panel .log-success { color: #4ade80; }
+        .log-panel .log-error { color: #f87171; }
+        .log-panel .log-warn { color: #fbbf24; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎮 Spine 3.8 资产测试页面</h1>
+        <p>验证 Spine 3.8 Runtime 加载 .skel / .atlas / .png 资产的完整性</p>
+    </div>
+
+    <div class="container">
+        <!-- 资产选择 -->
+        <div class="asset-tabs">
+            <button id="btn-keqing" class="active" onclick="loadAssetFromButton('ke_qing')">ke_qing (刻晴)</button>
+            <button id="btn-xiaoguang" onclick="loadAssetFromButton('xia_guang')">xia_guang (瑕光)</button>
+            <button onclick="stopAnimation()">⏹ 停止</button>
+            <button onclick="testRawTexture()">🔬 纹理诊断</button>
+            <button onclick="diagnoseSkeletonData()">🦴 骨骼诊断</button>
+        </div>
+
+        <!-- 状态信息 -->
+        <div class="status-bar" id="status-bar">
+            <div class="status-line"><span class="label">运行时版本:</span> <span id="rt-version">检测中...</span></div>
+            <div class="status-line"><span class="label">当前资产:</span> <span id="current-asset">无</span></div>
+            <div class="status-line"><span class="label">加载状态:</span> <span id="load-status">等待加载</span></div>
+            <div class="status-line"><span class="label">动画列表:</span> <span id="anim-list">-</span></div>
+            <div class="status-line"><span class="label">皮肤列表:</span> <span id="skin-list">-</span></div>
+            <div class="status-line"><span class="label">骨骼数量:</span> <span id="bone-count">-</span></div>
+            <div class="status-line"><span class="label">插槽数量:</span> <span id="slot-count">-</span></div>
+        </div>
+
+        <!-- Canvas -->
+        <div class="canvas-container">
+            <canvas id="gl-canvas"></canvas>
+            <div id="debug-overlay" style="position:absolute; top:8px; left:8px; background:rgba(0,0,0,0.7); padding:8px 12px; border-radius:6px; font:12px/1.5 monospace; color:#b9fffc; pointer-events:none; white-space:pre-wrap; max-width:45%;"></div>
+        </div>
+
+        <!-- 控制面板 -->
+        <div class="control-panel">
+            <label>动画:</label>
+            <select id="anim-select" onchange="playSelectedAnimation()"></select>
+            <label>循环:</label>
+            <input type="checkbox" id="loop-checkbox" checked>
+            <label>缩放:</label>
+            <input type="range" id="scale-slider" min="0.1" max="3" step="0.1" value="1" oninput="updateScale()">
+            <span id="scale-value">1.0</span>
+            <button onclick="playSelectedAnimation()">▶ 播放</button>
+        </div>
+
+        <!-- 日志 -->
+        <div class="log-panel" id="log-panel"></div>
+    </div>
+
+    <!-- Spine 3.8 Runtime (spine-core + spine-webgl，不含 Three.js 依赖) -->
+    <script src="/web/vendor/spine-core.js"></script>
+    <script src="/web/vendor/spine-webgl.js"></script>
+
+    <script>
+    // ========== 日志工具 ==========
+    const logEl = document.getElementById('log-panel');
+    function log(msg, type = 'info') {
+        const div = document.createElement('div');
+        div.className = 'log-entry log-' + type;
+        const time = new Date().toLocaleTimeString();
+        div.textContent = `[${time}] ${msg}`;
+        logEl.appendChild(div);
+        logEl.scrollTop = logEl.scrollHeight;
+        // 同时输出到 console 便于调试
+        if (type === 'error') console.error(msg);
+        else if (type === 'warn') console.warn(msg);
+        else console.log(msg);
+    }
+
+    // ========== 全局状态 ==========
+    let gl, sceneRenderer;
+    let currentSkeleton = null;
+    let currentAnimState = null;
+    let textureAtlas = null;
+    let currentAssetName = null;
+    let animationTime = 0;
+    let lastFrameTime = 0;
+    let animating = false;
+    let currentScale = 1;
+    let currentGlTextures = {};  // 存储 GLTexture 引用供渲染循环使用
+
+    // ========== 运行时检测 ==========
+    function checkRuntime() {
+        const versionEl = document.getElementById('rt-version');
+        if (typeof spine === 'undefined') {
+            versionEl.innerHTML = '<span class="err">❌ spine 对象未定义</span>';
+            log('spine-core.js / spine-webgl.js 加载失败', 'error');
+            return false;
+        }
+
+        const checks = {
+            'spine.SkeletonBinary': typeof spine.SkeletonBinary,
+            'spine.SkeletonJson': typeof spine.SkeletonJson,
+            'spine.TextureAtlas': typeof spine.TextureAtlas,
+            'spine.AtlasAttachmentLoader': typeof spine.AtlasAttachmentLoader,
+            'spine.AnimationState': typeof spine.AnimationState,
+            'spine.Skeleton': typeof spine.Skeleton,
+            'spine.webgl.SceneRenderer': typeof spine.webgl?.SceneRenderer,
+        };
+
+        const allOk = Object.entries(checks).every(([k, v]) => v === 'function');
+        if (allOk) {
+            versionEl.innerHTML = '<span class="ok">✅ Spine 3.8 Runtime (core + webgl) 全部 API 可用</span>';
+            log('✅ Spine 3.8 Runtime 加载成功', 'success');
+
+            // ===== PATCH: 用浏览器原生 TextDecoder("utf-8") 替换手写 readString，修复中文等多字节字符乱码 =====
+            // Spine 3.8 runtime 的 BinaryInput.readString 手写了 UTF-8 decoder，但在某些 Windows/中文环境下
+            // 会把 3 字节 UTF-8 序列误解码（CP936 残留）导致乱码（如 '蝴蝶结' → '￥ﾏﾳ￩ﾩﾬ￥ﾰﾾ'）。
+            // 我们同时 patch spine-webgl 和 spine-core（后者作为兜底也覆盖）
+            (function patchBinaryInputReadString(scope, scopeName) {
+                try {
+                    // 在 scope 的 module 中找 BinaryInput
+                    if (!scope) return;
+                    // Spine 3.8 webgl/core 导出到同名命名空间
+                    const findBI = (obj) => {
+                        if (!obj) return null;
+                        if (obj.BinaryInput && obj.BinaryInput.prototype && obj.BinaryInput.prototype.readString) return obj.BinaryInput;
+                        return null;
+                    };
+                    let BI = findBI(scope);
+                    let found = false;
+                    if (!BI && scope.webgl) BI = findBI(scope.webgl);
+                    // 还要检查闭包？不行 — 但 SkeletonBinary 所在闭包内部的 BinaryInput 我们摸不到。
+                    // 换策略：在运行时，通过 new 一个 SkeletonBinary 并捕获其 input 在 readSkeletonData 过程——不如直接通过 prototype patch 暴露的 spine.BinaryInput。
+                    if (BI && typeof TextDecoder !== 'undefined') {
+                        const orig = BI.prototype.readString;
+                        const utf8decoder = new TextDecoder('utf-8');
+                        BI.prototype.readString = function () {
+                            // 我们用和原实现相同的字节读取方式（readInt(true) 获取 byteCount），
+                            // 但把所有字节用 Uint8Array 收集后整体 decode，代替手写 UTF-8。
+                            const byteCount = this.readInt(true);
+                            switch (byteCount) {
+                                case 0: return null;
+                                case 1: return '';
+                            }
+                            const length = byteCount - 1;
+                            const bytes = new Uint8Array(length);
+                            for (let i = 0; i < length; i++) {
+                                bytes[i] = this.readByte() & 0xFF;
+                            }
+                            try {
+                                return utf8decoder.decode(bytes);
+                            } catch (e) {
+                                // fallback to original
+                                this.index -= length;
+                                return orig.call(this);
+                            }
+                        };
+                        found = true;
+                    }
+                    if (found) {
+                        log(`✅ UTF-8 readString patch 成功 (${scopeName})`, 'success');
+                    }
+                } catch (e) {
+                    log(`⚠️ readString patch 失败 (${scopeName}): ${e.message}`, 'warn');
+                }
+            })(spine, 'spine');
+        } else {
+            const missing = Object.entries(checks).filter(([k, v]) => v !== 'function').map(([k]) => k).join(', ');
+            versionEl.innerHTML = `<span class="err">❌ 缺少: ${missing}</span>`;
+            log(`❌ 缺少 API: ${missing}`, 'error');
+            return false;
+        }
+        return true;
+    }
+
+    // ========== WebGL 初始化 ==========
+    function initWebGL() {
+        const canvas = document.getElementById('gl-canvas');
+        canvas.width = canvas.clientWidth;
+        canvas.height = canvas.clientHeight;
+
+        gl = canvas.getContext('webgl', {
+            premultipliedAlpha: false,  // 禁用 canvas 预乘 alpha，与 GLTexture 设置一致
+            alpha: true,
+            antialias: true,
+        });
+
+        if (!gl) {
+            log('❌ WebGL 不可用', 'error');
+            return false;
+        }
+
+        try {
+            sceneRenderer = new spine.webgl.SceneRenderer(canvas, gl, false);
+            sceneRenderer.resize();  // 初始化视口和相机
+            log('✅ SceneRenderer 初始化成功 (spine.webgl.SceneRenderer)', 'success');
+            return true;
+        } catch (e) {
+            log('❌ SceneRenderer 创建失败: ' + e.message, 'error');
+            return false;
+        }
+    }
+
+    // ========== 创建 GLTexture ==========
+    function createGLTexture(image) {
+        try {
+            // Spine 3.8 使用 spine.webgl.GLTexture (继承自 spine.Texture)
+            // GLTexture(context, image, useMipMaps)
+            // 禁用浏览器 premultiplied alpha，由 Spine 渲染器控制
+            spine.webgl.GLTexture.DISABLE_UNPACK_PREMULTIPLIED_ALPHA_WEBGL = true;
+            return new spine.webgl.GLTexture(gl, image, false);
+        } catch (e) {
+            log('❌ GLTexture 创建失败: ' + e.message, 'error');
+            return null;
+        }
+    }
+
+    // ========== 图片加载 ==========
+    function loadImage(url) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error('图片加载失败: ' + url));
+            img.src = url;
+        });
+    }
+
+    // ========== 文本加载 ==========
+    async function fetchText(url) {
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${url}`);
+        return resp.text();
+    }
+
+    // ========== 二进制加载 ==========
+    async function fetchBinary(url) {
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${url}`);
+        return resp.arrayBuffer();
+    }
+
+    // ========== 从 atlas 提取 PNG 文件名 ==========
+    function extractPngFiles(atlasText) {
+        const files = [];
+        const lines = atlasText.split('\n');
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (/^.+\.(png|jpg|jpeg)$/i.test(trimmed)) {
+                files.push(trimmed);
+            }
+        }
+        return [...new Set(files)];
+    }
+
+    // ========== 加载资产 ==========
+    async function loadAsset(name) {
+        const statusEl = document.getElementById('load-status');
+        statusEl.textContent = '加载中...';
+        statusEl.className = 'warn';
+
+        // 停止当前动画
+        stopAnimation();
+
+        // 移除旧的 canvas 内容
+        if (sceneRenderer) {
+            try { sceneRenderer.clear(0, 0, 0, 0); } catch (e) {}
+        }
+
+        const assetConfig = {
+            ke_qing: { folder: '/assets/spine/ke_qing', file: 'ke_qing' },
+            xia_guang: { folder: '/assets/spine/xia_guang', file: 'build_char_423_blemsh' },
+        };
+
+        const config = assetConfig[name];
+        if (!config) {
+            log(`❌ 未知资产: ${name}`, 'error');
+            return;
+        }
+
+        try {
+            log(`📥 开始加载: ${name} (${config.folder})`, 'info');
+            log('  [Step 1] 加载 atlas 文本...', 'info');
+
+            // 1. 加载 atlas
+            const atlasText = await fetchText(`${config.folder}/${config.file}.atlas`);
+            log('  [Step 1] ✅ Atlas 文本加载成功', 'success');
+
+            // 2. 提取 PNG 文件名并加载图片
+            const pngFiles = extractPngFiles(atlasText);
+            log(`  [Step 2] 📋 Atlas 引用 ${pngFiles.length} 个 PNG: ${pngFiles.join(', ')}`, 'info');
+
+            const images = {};
+            for (const pngFile of pngFiles) {
+                log(`  [Step 2] 加载图片: ${pngFile}...`, 'info');
+                const img = await loadImage(`${config.folder}/${pngFile}`);
+                images[pngFile] = img;
+                log(`  [Step 2] ✅ PNG 加载: ${pngFile} (${img.width}×${img.height})`, 'success');
+            }
+
+            // 3. 创建 GLTexture 并建立映射
+            log('  [Step 3] 创建 GLTexture...', 'info');
+            const glTextures = {};
+            currentGlTextures = glTextures;  // 存储到全局供渲染循环使用
+            for (const pngFile of pngFiles) {
+                log(`  [Step 3] 创建 GLTexture: ${pngFile}...`, 'info');
+                const glTex = createGLTexture(images[pngFile]);
+                if (glTex) {
+                    glTextures[pngFile] = glTex;
+                    log(`  [Step 3] ✅ GLTexture 创建: ${pngFile}`, 'success');
+                } else {
+                    log(`  [Step 3] ❌ GLTexture 创建失败: ${pngFile}`, 'error');
+                }
+            }
+
+            // 4. 创建 TextureAtlas
+            log('  [Step 4] 创建 TextureAtlas...', 'info');
+            textureAtlas = new spine.TextureAtlas(atlasText, (line) => {
+                if (glTextures[line]) {
+                    return glTextures[line];
+                }
+                log(`  ❌ Atlas 引用的纹理未找到: ${line}`, 'error');
+                return null;
+            });
+            log('  [Step 4] ✅ TextureAtlas 创建成功', 'success');
+
+            // 5. 加载骨架数据
+            log('  [Step 5] 加载 .skel 二进制...', 'info');
+            let skeletonData;
+            let skelError = null;
+            try {
+                const skelBuffer = await fetchBinary(`${config.folder}/${config.file}.skel`);
+                log('  [Step 5] ✅ .skel 二进制加载成功', 'success');
+
+                log('  [Step 5] 解析骨架数据 (SkeletonBinary)...', 'info');
+                const attachmentLoader = new spine.AtlasAttachmentLoader(textureAtlas);
+                const parser = new spine.SkeletonBinary(attachmentLoader);
+                parser.scale = 1;  // Spine 3.8 使用属性而非 setScale 方法
+                // Spine 3.8 BinaryInput 期望 Uint8Array（它用 data.buffer 获取底层 ArrayBuffer）
+                const skelUint8 = new Uint8Array(skelBuffer);
+                skeletonData = parser.readSkeletonData(skelUint8);
+                log('  [Step 5] ✅ 骨架解析成功', 'success');
+            } catch (skelErr) {
+                skelError = skelErr;
+                log(`  ⚠️ .skel 解析失败: ${skelErr.message}`, 'warn');
+                log(`    堆栈: ${skelErr.stack ? skelErr.stack.split('\n').slice(0, 2).join(' | ') : 'N/A'}`, 'warn');
+                log('  [Step 5] 尝试 .json 回退...', 'info');
+                const jsonText = await fetchText(`${config.folder}/${config.file}.json`);
+                log('  ✅ .json 加载成功', 'success');
+
+                const attachmentLoader = new spine.AtlasAttachmentLoader(textureAtlas);
+                const parser = new spine.SkeletonJson(attachmentLoader);
+                skeletonData = parser.readSkeletonData(jsonText);
+            }
+
+            // 5. 输出骨架信息
+            const animations = skeletonData.animations || [];
+            const skins = skeletonData.skins || [];
+            const bones = skeletonData.bones || [];
+            const slots = skeletonData.slots || [];
+
+            document.getElementById('anim-list').textContent = animations.map(a => a.name).join(', ') || '(无)';
+            document.getElementById('skin-list').textContent = skins.map(s => s.name).join(', ') || '(无)';
+            document.getElementById('bone-count').textContent = bones.length;
+            document.getElementById('slot-count').textContent = slots.length;
+
+            log(`  🦴 骨架: ${bones.length} 骨骼, ${slots.length} 插槽`, 'info');
+            log(`  🎬 动画: ${animations.map(a => a.name).join(', ') || '无'}`, 'info');
+            log(`  🎨 皮肤: ${skins.map(s => s.name).join(', ') || '无'}`, 'info');
+
+            // 6. 实例化骨架
+            log('  [Step 6] 实例化骨架...', 'info');
+            currentSkeleton = new spine.Skeleton(skeletonData);
+            const animStateData = new spine.AnimationStateData(skeletonData);
+            currentAnimState = new spine.AnimationState(animStateData);
+            currentAnimState.apply(currentSkeleton);
+            currentSkeleton.updateWorldTransform();
+            log('  [Step 6] ✅ 骨架实例化成功', 'success');
+
+            // 7. 填充动画选择器
+            const animSelect = document.getElementById('anim-select');
+            animSelect.innerHTML = '';
+            if (animations.length > 0) {
+                animations.forEach((anim, i) => {
+                    const opt = document.createElement('option');
+                    opt.value = i;
+                    opt.textContent = anim.name;
+                    animSelect.appendChild(opt);
+                });
+            } else {
+                const opt = document.createElement('option');
+                opt.textContent = '(无动画)';
+                opt.disabled = true;
+                animSelect.appendChild(opt);
+            }
+
+            // 8. 切换到默认皮肤（如果有）
+            log('  [Step 7] 设置默认皮肤...', 'info');
+            if (skins.length > 0) {
+                currentSkeleton.setSkinByName(skins[0].name);
+                currentSkeleton.setSlotsToSetupPose();
+                log('  [Step 7] ✅ 皮肤设置成功', 'success');
+            }
+
+            // 9. 播放第一个动画
+            log('  [Step 8] 播放动画...', 'info');
+            if (animations.length > 0) {
+                try {
+                    playAnimationByName(animations[0].name, true);
+                    log(`  [Step 8] ✅ 播放动画: ${animations[0].name}`, 'success');
+                } catch (animErr) {
+                    log(`  [Step 8] ❌ 动画播放失败: ${animErr.message}`, 'error');
+                }
+            }
+
+            // 10. 开始渲染循环
+            currentAssetName = name;
+            statusEl.textContent = '✅ 加载成功';
+            statusEl.className = 'ok';
+            document.getElementById('current-asset').textContent = name;
+
+            log(`🎉 资产 "${name}" 加载完成，开始渲染`, 'success');
+            startRenderLoop();
+
+        } catch (err) {
+            let msg = err.message;
+            if (skelError) {
+                msg = `.skel错误: ${skelError.message}; .json错误: ${err.message}`;
+            }
+            log(`❌ 加载失败: ${msg}`, 'error');
+            log(`  错误堆栈: ${err.stack ? err.stack.split('\n').slice(0, 3).join(' | ') : 'N/A'}`, 'error');
+            console.error(err);
+            statusEl.textContent = '❌ 加载失败: ' + msg;
+            statusEl.className = 'err';
+        }
+    }
+
+    // ========== 播放指定动画 ==========
+    function playAnimationByName(name, loop) {
+        if (!currentAnimState || !currentSkeleton) return;
+        const trackIndex = 0;
+        currentAnimState.setAnimation(trackIndex, name, loop);
+        log(`▶ 播放动画: ${name}${loop ? ' (循环)' : ''}`, 'info');
+    }
+
+    function playSelectedAnimation() {
+        const select = document.getElementById('anim-select');
+        const loop = document.getElementById('loop-checkbox').checked;
+        const name = select.options[select.selectedIndex]?.textContent;
+        if (name && name !== '(无动画)') {
+            playAnimationByName(name, loop);
+        }
+    }
+
+    function updateScale() {
+        const val = parseFloat(document.getElementById('scale-slider').value);
+        currentScale = val;
+        document.getElementById('scale-value').textContent = val.toFixed(1);
+    }
+
+    // ========== 停止动画 ==========
+    function stopAnimation() {
+        animating = false;
+        if (currentAnimState) {
+            currentAnimState.clearTracks();
+        }
+    }
+
+    // ========== 渲染循环 ==========
+    function startRenderLoop() {
+        animating = true;
+        lastFrameTime = performance.now();
+        animationTime = 0;
+
+        function frame(now) {
+            if (!animating) return;
+
+            const dt = Math.min((now - lastFrameTime) / 1000, 0.05);
+            lastFrameTime = now;
+            animationTime += dt;
+
+            // 更新动画
+            if (currentAnimState && currentSkeleton) {
+                try {
+                    // 先设置骨架根位置（必须在 updateWorldTransform 之前，
+                    // 因为 rootBone.worldX/Y = skeleton.x/y + bone.data.x/y 叠加）
+                    currentSkeleton.x = 0;
+                    currentSkeleton.y = 0;
+                    currentSkeleton.scaleX = currentScale;
+                    currentSkeleton.scaleY = currentScale;
+
+                    currentAnimState.update(dt);
+                    currentAnimState.apply(currentSkeleton);
+                    currentSkeleton.updateWorldTransform();
+
+                    // 渲染（Spine 3.8 资产默认使用 premultiplied alpha）
+                    gl.clearColor(0, 0, 0, 0);
+                    gl.clear(gl.COLOR_BUFFER_BIT);
+                    sceneRenderer.begin();
+                    sceneRenderer.drawSkeleton(currentSkeleton, true);
+                    sceneRenderer.end();
+                } catch (renderErr) {
+                    log(`❌ 渲染错误: ${renderErr.message}`, 'error');
+                    animating = false;
+                    return;
+                }
+            }
+
+            requestAnimationFrame(frame);
+        }
+        requestAnimationFrame(frame);
+    }
+
+    // ========== 按钮事件 ==========
+    function loadAssetFromButton(name) {
+        document.querySelectorAll('.asset-tabs button').forEach(b => {
+            b.classList.remove('active');
+        });
+        event?.target?.classList?.add('active');
+
+        if (name === 'xia_guang') {
+            log('⚠️ 警告: xia_guang 的 PNG (512×512) 与 atlas 声明 (688×688) 不匹配，渲染可能异常', 'warn');
+        }
+        loadAsset(name);
+    }
+
+    // ========== 原始纹理诊断测试（绕过骨架管线）==========
+    async function testRawTexture() {
+        stopAnimation();
+        log('🔬 === 原始纹理诊断测试开始 ===', 'info');
+
+        try {
+            // 加载 ke_qing PNG
+            const img = await loadImage('/assets/spine/ke_qing/ke_qing.png');
+            log(`🔬 加载纹理: ${img.width}×${img.height}`, 'info');
+
+            // 创建 GLTexture
+            const glTex = createGLTexture(img);
+            if (!glTex) {
+                log('❌ GLTexture 创建失败', 'error');
+                return;
+            }
+            log('🔬 GLTexture 创建成功', 'success');
+
+            // 使用 drawTexture 直接绘制到 canvas 左上角
+            const camera = sceneRenderer.camera;
+            const drawW = Math.min(img.width, camera.viewportWidth * 0.8);
+            const scale = drawW / img.width;
+            const drawH = img.height * scale;
+            const x = -camera.viewportWidth / 2 + 20;
+            const y = camera.viewportHeight / 2 - drawH - 20;
+
+            log(`🔬 drawTexture: x=${x.toFixed(0)}, y=${y.toFixed(0)}, w=${drawW.toFixed(0)}, h=${drawH.toFixed(0)}`, 'info');
+
+            // 开始渲染
+            gl.clearColor(0.2, 0.2, 0.3, 1);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            sceneRenderer.begin();
+            sceneRenderer.drawTexture(glTex, x, y, drawW, drawH);
+            sceneRenderer.end();
+
+            log('🔬 ✅ drawTexture 完成，请检查 canvas 是否看到打包的纹理集（一张大 PNG 含所有部件）', 'success');
+            log('🔬 === 如果看到完整纹理图 → 纹理/Shader/相机 正常，问题在骨架解析或顶点变换', 'info');
+            log('🔬 === 如果空白或异常 → 问题在 GLTexture/Shader/相机', 'info');
+        } catch (e) {
+            log(`❌ 诊断失败: ${e.message}`, 'error');
+        }
+    }
+
+    // ========== 骨骼/RegionAttachment 诊断（不经过骨架渲染管线，直接画一个局部区域）==========
+    function setOverlay(html) {
+        const el = document.getElementById('debug-overlay');
+        if (el) el.innerHTML = html;
+    }
+    function diagnoseSkeletonData() {
+        if (!currentSkeleton || !textureAtlas) {
+            log('❌ 请先加载资产', 'error');
+            setOverlay('<span style="color:#ff8080">请先加载资产</span>');
+            return;
+        }
+        stopAnimation();
+        log('🔬 === 骨架/Region 诊断开始 ===', 'info');
+
+        // 确保骨架在 setToSetupPose 后的干净状态
+        currentSkeleton.setToSetupPose();
+        // ** 先设置 skeleton.x/y/scale/sclaeY, 再 update！**
+        currentSkeleton.x = 0;
+        currentSkeleton.y = 0;
+        currentSkeleton.scaleX = currentScale;
+        currentSkeleton.scaleY = currentScale;
+        currentSkeleton.updateWorldTransform();
+
+        // 1. 打印 root 骨骼
+        const rootBone = currentSkeleton.getRootBone ? currentSkeleton.getRootBone() : currentSkeleton.bones[0];
+        const info = [];
+        info.push(`<b style="color:#ffd980">[${currentAssetName}]</b>`);
+        info.push(`root: ${rootBone.data.name}`);
+        info.push(`w=(${rootBone.worldX.toFixed(0)}, ${rootBone.worldY.toFixed(0)})`);
+        info.push(`a=${rootBone.a.toFixed(3)} b=${rootBone.b.toFixed(3)}`);
+        info.push(`c=${rootBone.c.toFixed(3)} d=${rootBone.d.toFixed(3)}`);
+        info.push('---- bones top 8 ----');
+
+        log(`🔬 根骨骼: ${rootBone.data.name}, world(${rootBone.worldX.toFixed(0)},${rootBone.worldY.toFixed(0)}), a=${rootBone.a.toFixed(3)} d=${rootBone.d.toFixed(3)}`, 'info');
+        // 打印前8个骨骼的 data 参数
+        for (let i = 0; i < Math.min(8, currentSkeleton.bones.length); i++) {
+            const b = currentSkeleton.bones[i];
+            const line =
+                `B${i} ${b.data.name}: L(${b.data.x.toFixed(1)},${b.data.y.toFixed(1)},r${b.data.rotation.toFixed(1)},s${b.data.scaleX.toFixed(2)},${b.data.scaleY.toFixed(2)}) / W(${b.worldX.toFixed(0)},${b.worldY.toFixed(0)}) a${b.a.toFixed(2)} d${b.d.toFixed(2)}`;
+            log('  ' + line, 'info');
+            info.push(line);
+        }
+
+        // 2. 找到第一个有 RegionAttachment 的插槽
+        let found = null;
+        for (const slot of currentSkeleton.slots) {
+            const att = slot.getAttachment();
+            if (att && att instanceof spine.RegionAttachment) {
+                found = { slot, att };
+                break;
+            }
+        }
+        if (!found) {
+            setOverlay('<span style="color:#ff8080">未找到RegionAttachment</span>');
+            log('❌ 未找到任何 RegionAttachment', 'error');
+            return;
+        }
+        const { slot, att } = found;
+        const region = att.region;
+        const bone = slot.bone;
+        log(`🔬 插槽: ${slot.data.name} @ ${bone.data.name}, Att:${att.name} Region:${region.name}`, 'info');
+        log(`   Region.xywh(${region.x},${region.y},${region.width},${region.height}) orig(${region.originalWidth}×${region.originalHeight}) off(${region.offsetX},${region.offsetY}) rot=${region.rotate}`, 'info');
+        log(`   UV u=${region.u.toFixed(4)} v=${region.v.toFixed(4)} u2=${region.u2.toFixed(4)} v2=${region.v2.toFixed(4)}`, 'info');
+        log(`   Att locals: x=${att.x.toFixed(1)} y=${att.y.toFixed(1)} rot=${att.rotation.toFixed(1)} sx=${att.scaleX.toFixed(2)} sy=${att.scaleY.toFixed(2)} w=${att.width.toFixed(1)} h=${att.height.toFixed(1)}`, 'info');
+        info.push('---- attachment ----');
+        info.push(`${slot.data.name} @ ${bone.data.name}`);
+        info.push(`Reg: ${region.width}x${region.height} / orig ${region.originalWidth}x${region.originalHeight}`);
+        info.push(`Att: w=${att.width.toFixed(0)} h=${att.height.toFixed(0)} rot=${att.rotation.toFixed(1)} s=${att.scaleX.toFixed(2)},${att.scaleY.toFixed(2)}`);
+        info.push(`Bone w(${bone.worldX.toFixed(0)},${bone.worldY.toFixed(0)}) a=${bone.a.toFixed(2)} b=${bone.b.toFixed(2)} c=${bone.c.toFixed(2)} d=${bone.d.toFixed(2)}`);
+
+        // 2a. 手动再执行一次 updateOffset，保证偏移是最新的，并打印 4 角局部坐标
+        att.updateOffset();
+        const off = att.offset;
+        info.push('offset (4pts local):');
+        log('   Attachment.offset local 4角:', 'info');
+        for (let p = 0; p < 4; p++) {
+            const s = `  P${p}: (${off[p*2].toFixed(1)}, ${off[p*2+1].toFixed(1)})`;
+            log(s, 'info');
+            info.push(s);
+        }
+
+        // 2b. computeWorldVertices
+        const stride = 8; // non-twoColor
+        const worldVerts = new Float32Array(4 * stride);
+        att.computeWorldVertices(bone, worldVerts, 0, stride);
+        info.push('world (4pts by bone transform):');
+        log('   computeWorldVertices 4角 world:', 'info');
+        for (let p = 0; p < 4; p++) {
+            const s = `  P${p}_w:(${worldVerts[p*stride].toFixed(1)}, ${worldVerts[p*stride + 1].toFixed(1)})`;
+            log(s, 'info');
+            info.push(s);
+        }
+
+        // 计算 bounding box
+        let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+        for (let p=0; p<4; p++) {
+            const x=worldVerts[p*stride], y=worldVerts[p*stride+1];
+            if (x<minX) minX=x; if (x>maxX) maxX=x;
+            if (y<minY) minY=y; if (y>maxY) maxY=y;
+        }
+        const bbW = maxX-minX, bbH = maxY-minY;
+        info.push(`bbox: ${bbW.toFixed(1)} x ${bbH.toFixed(1)}`);
+        info.push(`(expect: ~${region.width.toFixed(1)}x${region.height.toFixed(1)})`);
+        log(`   bbox: w=${bbW.toFixed(1)} h=${bbH.toFixed(1)} (expect: ~${region.width}x${region.height})`, 'info');
+        if (bbW > region.width*2 || bbH > region.height*2 || Math.min(bbW,bbH) < 1) {
+            log('   ⚠️ BBOX 异常: 骨骼/缩放/skew 被破坏！', 'warn');
+            info.push('<span style="color:#ffb86c">⚠ BBOX 异常</span>');
+        } else {
+            info.push('<span style="color:#b9fca7">✓ BBOX 正常</span>');
+        }
+
+        setOverlay(info.join('<br>'));
+
+        // 3. drawRegion 单部件
+        const drawW = Math.max(30, Math.min(400, region.originalWidth));
+        const drawH = Math.max(30, Math.min(400, region.originalHeight));
+        log(`🔬 Step 1/2: drawRegion 单部件 (${drawW}x${drawH})`, 'info');
+        gl.clearColor(0.2, 0.2, 0.3, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        sceneRenderer.begin();
+        sceneRenderer.drawRegion(region, -drawW / 2, -drawH / 2, drawW, drawH, null, false);
+        sceneRenderer.end();
+
+        setTimeout(() => {
+            log(`🔬 Step 2/2: 直接按 worldVerts + uvs 画 quad`, 'info');
+            gl.clearColor(0.25, 0.25, 0.35, 1);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            sceneRenderer.begin();
+            const renderer = sceneRenderer.skeletonRenderer;
+            const batcher = sceneRenderer.batcher;
+            const uvs = att.uvs;
+            const vCount = 4;
+            const vertexSize = renderer.twoColorTint ? 12 : 8;
+            const floatArray = spine.Utils.newFloatArray(vCount * vertexSize);
+            const r=1,g=1,b=1,a=1, dr=0,dg=0,db=0,da=0;
+            let vi = 0;
+            for (let p = 0; p < vCount; p++) {
+                floatArray[vi++] = worldVerts[p * stride];
+                floatArray[vi++] = worldVerts[p * stride + 1];
+                floatArray[vi++] = r;
+                floatArray[vi++] = g;
+                floatArray[vi++] = b;
+                floatArray[vi++] = a;
+                floatArray[vi++] = uvs[p*2];
+                floatArray[vi++] = uvs[p*2+1];
+                if (renderer.twoColorTint) {
+                    floatArray[vi++] = dr;
+                    floatArray[vi++] = dg;
+                    floatArray[vi++] = db;
+                    floatArray[vi++] = da;
+                }
+            }
+            const triangles = [0, 1, 2, 2, 3, 0];
+            batcher.draw(region.texture, floatArray, vCount * vertexSize, triangles, triangles.length);
+            sceneRenderer.end();
+            log(`🔬 ✅ 直接顶点绘制完成`, 'success');
+        }, 300);
+    }
+
+    // 自动加载第一个资产
+    window.addEventListener('DOMContentLoaded', () => {
+        log('🚀 Spine 3.8 资产测试页面启动', 'info');
+
+        if (!checkRuntime()) {
+            log('❌ 运行时检查失败，请确认 spine-core.js 和 spine-webgl.js 已正确加载', 'error');
+            return;
+        }
+
+        if (!initWebGL()) {
+            log('❌ WebGL 初始化失败', 'error');
+            return;
+        }
+
+        // 启动默认加载 ke_qing（已确认完整可渲染；xia_guang 三件套版本不匹配已废弃，保留按钮便于手工测试）
+        log('💡 优先测试 ke_qing (版本 3.8.75，已通过版本与渲染链路验证)', 'info');
+        loadAsset('ke_qing');
+    });
+    </script>
+</body>
+</html>

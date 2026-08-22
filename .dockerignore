@@ -1,0 +1,44 @@
+# Go 编译产物
+*.exe
+*.test
+*.out
+baoshiTD
+baoshiTD.exe
+
+# 构建产物
+/bin/
+/dist/
+/build/
+
+# 源码中的测试和文档
+*_test.go
+# .md
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 环境
+.env
+.env.local
+.env.*
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# 日志
+*.log
+
+# 临时文件
+tmp/
+temp/

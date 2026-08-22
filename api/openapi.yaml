@@ -1,0 +1,728 @@
+# OpenAPI Specification - 宝石塔防
+# Spec-First 模式：所有 API 契约在此定义
+openapi: 3.0.3
+info:
+  title: 宝石塔防 API
+  version: 0.2.0
+  description: |
+    基于 OpenSpec 模式的 Go 后端 API 规范。
+    宝石塔防（Gem Tower Defense）- 开放地图 + 随机宝石合成塔防游戏。
+
+servers:
+  - url: http://localhost:8080
+    description: 本地开发服务器
+
+tags:
+  - name: Health
+    description: 健康检查
+  - name: Auth
+    description: 用户认证
+  - name: Config
+    description: 游戏配置（塔/敌人/宝石/地图）
+  - name: Save
+    description: 游戏存档管理
+  - name: Leaderboard
+    description: 排行榜
+
+paths:
+  # ============ Health ============
+  /api/health:
+    get:
+      tags: [Health]
+      summary: 健康检查
+      responses:
+        '200':
+          description: 服务正常
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  # ============ Auth ============
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: 用户注册
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: 注册成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: 参数错误
+        '409':
+          description: 用户名已存在
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: 用户登录
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: 用户名或密码错误
+
+  # ============ Config ============
+  /api/config/towers:
+    get:
+      tags: [Config]
+      summary: 获取所有塔配置
+      description: 返回塔类型列表（含 Spine 资产ID、属性、升级数据）
+      responses:
+        '200':
+          description: 塔配置列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TowerConfig'
+
+  /api/config/enemies:
+    get:
+      tags: [Config]
+      summary: 获取所有敌人配置
+      description: 返回敌人类型列表（含 Spine 资产ID、属性、抗性）
+      responses:
+        '200':
+          description: 敌人配置列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EnemyConfig'
+
+  /api/config/gems:
+    get:
+      tags: [Config]
+      summary: 获取宝石配置
+      description: 返回宝石元素、品质、合成规则
+      responses:
+        '200':
+          description: 宝石配置
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GemConfig'
+
+  /api/config/maps:
+    get:
+      tags: [Config]
+      summary: 获取地图列表
+      responses:
+        '200':
+          description: 地图列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MapInfo'
+
+  /api/config/maps/{id}:
+    get:
+      tags: [Config]
+      summary: 获取地图详情
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: uint
+      responses:
+        '200':
+          description: 地图详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MapDetail'
+        '404':
+          description: 地图不存在
+
+  /api/config/waves/{mapId}:
+    get:
+      tags: [Config]
+      summary: 获取指定地图的波次配置
+      parameters:
+        - name: mapId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: uint
+      responses:
+        '200':
+          description: 波次配置
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WaveConfig'
+
+  # ============ Save ============
+  /api/saves:
+    get:
+      tags: [Save]
+      summary: 获取当前用户存档列表
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 存档列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SaveInfo'
+        '401':
+          description: 未授权
+
+    post:
+      tags: [Save]
+      summary: 创建新存档
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveCreateRequest'
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaveInfo'
+
+  /api/saves/{id}:
+    get:
+      tags: [Save]
+      summary: 读取存档详情
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: uint
+      responses:
+        '200':
+          description: 存档详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaveDetail'
+        '404':
+          description: 存档不存在
+
+    put:
+      tags: [Save]
+      summary: 更新存档
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: uint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveCreateRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaveInfo'
+
+    delete:
+      tags: [Save]
+      summary: 删除存档
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: uint
+      responses:
+        '204':
+          description: 删除成功
+        '404':
+          description: 存档不存在
+
+  # ============ Leaderboard ============
+  /api/leaderboard:
+    get:
+      tags: [Leaderboard]
+      summary: 获取排行榜
+      parameters:
+        - name: mapId
+          in: query
+          schema:
+            type: integer
+            format: uint
+          description: 可选，按地图筛选
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+          description: 返回数量（默认100）
+      responses:
+        '200':
+          description: 排行榜
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LeaderboardEntry'
+
+    post:
+      tags: [Leaderboard]
+      summary: 提交分数到排行榜
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeaderboardSubmitRequest'
+      responses:
+        '201':
+          description: 提交成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaderboardEntry'
+        '401':
+          description: 未授权
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # ===== Common =====
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "ok"
+        message:
+          type: string
+          example: "Service is running"
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        code:
+          type: integer
+
+    # ===== Auth =====
+    RegisterRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 32
+          example: "player001"
+        password:
+          type: string
+          minLength: 6
+          maxLength: 128
+          example: "password123"
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          example: "player001"
+        password:
+          type: string
+          example: "password123"
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT token
+        user:
+          $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: uint
+        username:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    # ===== Game Config =====
+    TowerConfig:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: uint
+        name:
+          type: string
+          example: "火焰塔"
+        element:
+          type: string
+          enum: [fire, ice, thunder, poison, light, dark]
+        spineAsset:
+          type: string
+          description: Spine 资产ID
+          example: "tower_fire_1"
+        description:
+          type: string
+        levels:
+          type: array
+          items:
+            type: object
+            properties:
+              level:
+                type: integer
+              baseDamage:
+                type: number
+                format: float
+              attackRange:
+                type: number
+                format: float
+              attackSpeed:
+                type: number
+                format: float
+              cost:
+                type: integer
+              upgradeCost:
+                type: integer
+        canTargetFly:
+          type: boolean
+          default: true
+
+    EnemyConfig:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: uint
+        name:
+          type: string
+          example: "普通士兵"
+        type:
+          type: string
+          enum: [normal, flying, heavy, swift, resistant, elite, boss]
+        spineAsset:
+          type: string
+          description: Spine 资产ID
+          example: "grunt"
+        spineLevel:
+          type: string
+          enum: [simplified, standard, full]
+        baseHP:
+          type: number
+          format: float
+        speed:
+          type: number
+          format: float
+          description: 像素/秒
+        armor:
+          type: number
+          format: float
+          description: 物理减伤
+        resistances:
+          type: object
+          additionalProperties:
+            type: number
+            format: float
+          description: 元素抗性 {fire: 0.3, ice: 0.0}
+        flying:
+          type: boolean
+        isBoss:
+          type: boolean
+        isElite:
+          type: boolean
+        dropGemRate:
+          type: number
+          format: float
+
+    GemConfig:
+      type: object
+      properties:
+        elements:
+          type: array
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+                enum: [fire, ice, thunder, poison, light, dark]
+              name:
+                type: string
+              color:
+                type: string
+              baseBonus:
+                type: object
+                description: 基础加成属性
+        rarities:
+          type: array
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+                enum: [common, rare, epic, legendary, mythic]
+              name:
+                type: string
+              multiplier:
+                type: number
+                format: float
+              dropRate:
+                type: number
+                format: float
+        synthesisRules:
+          type: array
+          items:
+            type: object
+            properties:
+              inputs:
+                type: array
+                items:
+                  type: string
+              output:
+                type: object
+                properties:
+                  element:
+                    type: string
+                  rarity:
+                    type: string
+                  specialEffect:
+                    type: string
+
+    MapInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: uint
+        name:
+          type: string
+          example: "草原平原"
+        theme:
+          type: string
+          example: "grassland"
+        difficulty:
+          type: integer
+          minimum: 1
+          maximum: 5
+        maxWaves:
+          type: integer
+        thumbnailUrl:
+          type: string
+
+    MapDetail:
+      allOf:
+        - $ref: '#/components/schemas/MapInfo'
+        - type: object
+          properties:
+            gridWidth:
+              type: integer
+            gridHeight:
+              type: integer
+            cellSize:
+              type: integer
+            spawnPoints:
+              type: array
+              items:
+                type: object
+                properties:
+                  x:
+                    type: integer
+                  y:
+                    type: integer
+            base:
+              type: object
+              properties:
+                x:
+                  type: integer
+                y:
+                  type: integer
+                hp:
+                  type: integer
+            buildableCells:
+              type: array
+              items:
+                type: object
+                properties:
+                  x:
+                    type: integer
+                  y:
+                    type: integer
+
+    WaveConfig:
+      type: object
+      properties:
+        wave:
+          type: integer
+        groups:
+          type: array
+          items:
+            type: object
+            properties:
+              enemyId:
+                type: integer
+                format: uint
+              count:
+                type: integer
+              interval:
+                type: number
+                format: float
+                description: 生成间隔（秒）
+              delay:
+                type: number
+                format: float
+                description: 组开始延迟（秒）
+        reward:
+          type: object
+          properties:
+            gold:
+              type: integer
+            gemRolls:
+              type: integer
+        isBossWave:
+          type: boolean
+
+    # ===== Save =====
+    SaveInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: uint
+        name:
+          type: string
+        mapId:
+          type: integer
+          format: uint
+        wave:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SaveDetail:
+      allOf:
+        - $ref: '#/components/schemas/SaveInfo'
+        - type: object
+          properties:
+            data:
+              type: object
+              description: 完整游戏状态数据（塔布局、宝石、金币等）
+
+    SaveCreateRequest:
+      type: object
+      required: [name, mapId, data]
+      properties:
+        name:
+          type: string
+        mapId:
+          type: integer
+          format: uint
+        wave:
+          type: integer
+        data:
+          type: object
+          description: 完整游戏状态 JSON
+
+    # ===== Leaderboard =====
+    LeaderboardEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: uint
+        username:
+          type: string
+        score:
+          type: integer
+        wave:
+          type: integer
+        mapId:
+          type: integer
+          format: uint
+        createdAt:
+          type: string
+          format: date-time
+        rank:
+          type: integer
+          description: 排名（查询时计算）
+
+    LeaderboardSubmitRequest:
+      type: object
+      required: [mapId, score, wave]
+      properties:
+        mapId:
+          type: integer
+          format: uint
+        score:
+          type: integer
+        wave:
+          type: integer

@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>宝石TD v2</title>
+  <link rel="stylesheet" href="/web/css/td.css" />
+</head>
+<body>
+  <div id="app" class="app-v2">
+    <!-- ================= HUD ================= -->
+    <header id="hud" class="hud">
+      <div class="hud-row-1">
+        <div class="hud-title">宝石TD v2</div>
+        <div class="hud-stats">
+          <div class="stat"><span class="label">金币</span><span id="stat-gold" class="value gold">0</span></div>
+          <div class="stat"><span class="label">生命</span><span id="stat-hp" class="value hp">0 / 0</span></div>
+          <div class="stat"><span class="label">波次</span><span id="stat-wave" class="value">0 / 0</span></div>
+          <div class="stat"><span class="label">运气</span><span id="stat-luck" class="value luck">1</span></div>
+          <div class="stat"><span class="label">真塔</span><span id="stat-towers" class="value">0</span></div>
+          <div class="stat"><span class="label">墙</span><span id="stat-walls" class="value">0</span></div>
+          <div class="stat"><span class="label">来源</span><span id="stat-source" class="value source">-</span></div>
+        </div>
+        <div class="hud-actions">
+          <button id="btn-start"   class="btn primary">开始下一波</button>
+          <button id="btn-restart" class="btn">重开</button>
+          <button id="btn-save"    class="btn"      title="手动保存（战斗中不可）">💾 保存</button>
+          <button id="btn-load"    class="btn"      title="读取最近一次存档">📂 读档</button>
+          <button id="btn-account" class="btn ghost" title="登录 / 注册">
+            <span id="account-chip" class="account-chip">👤 未登录</span>
+          </button>
+        </div>
+      </div>
+      <div class="hud-row-2">
+        <div id="phase-bar" class="phase-bar">
+          <span id="phase-name" class="phase-name">MENU</span>
+          <span id="phase-extra" class="phase-extra"></span>
+        </div>
+        <div id="msg" class="msg"></div>
+      </div>
+    </header>
+
+    <!-- ================= MAIN ================= -->
+    <div id="game-body" class="game-body">
+      <!-- ================= LEFT: Buff panel ================= -->
+      <aside id="left-panel" class="side-panel">
+        <div class="panel-title">全局 Buffs</div>
+        <div id="buffs-list" class="buffs-list"><div class="empty">（暂无。波末可用金币抽取）</div></div>
+        <div class="panel-title mt">操作说明</div>
+        <ul class="tips">
+          <li>每波 <b>5 次</b>放置，点击空地→随机 Roll 塔</li>
+          <li>放置完成选择 <b>保留 1 座</b>，其余变墙</li>
+          <li>墙可<b>免费拆除</b>；塔不可撤</li>
+          <li>操作会自动检查连通性，<b>拒绝封死</b>路径</li>
+          <li>波末可用金币升级运气 / 抽 Buff</li>
+          <li>点击墙(褐)可拆除；点击塔查看属性</li>
+        </ul>
+      </aside>
+
+      <!-- ================= GAME CANVAS ================= -->
+      <main id="game-main" class="game-main">
+        <canvas id="stage" width="864" height="576"></canvas>
+      </main>
+
+      <!-- ================= RIGHT: log panel ================= -->
+      <aside id="right-panel" class="side-panel">
+        <div class="panel-title">消息日志</div>
+        <div id="log-list" class="log-list"></div>
+      </aside>
+    </div>
+
+    <!-- ================= RESERVE MODAL ================= -->
+    <div id="reserve-modal" class="modal hidden" role="dialog" aria-modal="true">
+      <div class="modal-body">
+        <div class="modal-title">请选择保留 1 座防御塔</div>
+        <div class="modal-sub">其余 4 座将免费变为<b>墙</b>（可拆）。</div>
+        <div id="reserve-choices" class="reserve-choices"></div>
+        <div class="modal-actions">
+          <button id="btn-reserve-cancel" class="btn">（无法取消，必须选1个）</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= WAVE-END PANEL ================= -->
+    <div id="waveend-modal" class="modal hidden">
+      <div class="modal-body wide">
+        <div class="modal-title">波次结算</div>
+        <div id="waveend-summary" class="waveend-summary"></div>
+        <div class="we-grid">
+          <div>
+            <div class="panel-title">运气升级</div>
+            <div id="luck-panel" class="luck-panel"></div>
+          </div>
+          <div>
+            <div class="panel-title">抽取 Buff（每次 <span id="buff-roll-cost">40</span> 金币）</div>
+            <div class="buff-roll-actions">
+              <button id="btn-roll-buff" class="btn primary">抽取一个 Buff</button>
+            </div>
+            <div id="buff-roll-result" class="buff-roll-result"></div>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button id="btn-next-wave" class="btn primary">进入下一波</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= WIN/LOSE MODAL ================= -->
+    <div id="end-modal" class="modal hidden">
+      <div class="modal-body">
+        <div id="end-title" class="modal-title huge">GAME OVER</div>
+        <div id="end-summary" class="waveend-summary"></div>
+        <div class="modal-actions">
+          <button id="btn-end-restart" class="btn primary">再玩一次</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= ACCOUNT (LOGIN/REGISTER) MODAL ================= -->
+    <div id="account-modal" class="modal hidden" role="dialog" aria-modal="true">
+      <div class="modal-body narrow">
+        <div id="account-title" class="modal-title">登录账号</div>
+        <div class="modal-sub" id="account-sub">登录后可云端保存进度</div>
+        <form id="account-form" class="form" autocomplete="off" onsubmit="return false;">
+          <label class="field">
+            <span class="field-label">用户名 <small class="hint">（≥2 字符）</small></span>
+            <input id="acc-username" name="username" type="text" class="input" placeholder="例如 player01" required minlength="2" />
+          </label>
+          <label class="field">
+            <span class="field-label">密码 <small class="hint">（≥6 字符）</small></span>
+            <input id="acc-password" name="password" type="password" class="input" placeholder="至少 6 位" required minlength="6" />
+          </label>
+          <div id="account-err" class="form-err hidden"></div>
+          <div class="modal-actions two-col">
+            <button id="btn-acc-login"    type="button" class="btn primary">登录</button>
+            <button id="btn-acc-register" type="button" class="btn">注册并登录</button>
+            <button id="btn-acc-logout"   type="button" class="btn danger hidden">退出登录</button>
+            <button id="btn-acc-cancel"   type="button" class="btn ghost">取消</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ================= SAVE/LOAD RESULT TOAST ================= -->
+    <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+  </div>
+
+  <script src="/web/js/td-config-fallback.js"></script>
+  <script src="/web/js/td-config-loader.js"></script>
+  <script src="/web/js/td-game.js"></script>
+  <script>
+    window.addEventListener('DOMContentLoaded', function () {
+      TDGame.init({ stage: document.getElementById('stage') })
+        .catch(function (err) {
+          var m = document.getElementById('msg');
+          if (m) { m.classList.add('err'); m.textContent = '初始化失败: ' + (err && err.message ? err.message : err); }
+          else { alert(err && err.message ? err.message : err); }
+        });
+    });
+  </script>
+</body>
+</html>

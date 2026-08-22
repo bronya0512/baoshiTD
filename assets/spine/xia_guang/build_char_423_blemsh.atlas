@@ -1,0 +1,622 @@
+
+build_char_423_blemsh.png
+size: 512, 512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+F_Bottle_a
+  rotate: true
+  xy: 181.581395, 1.488372
+  size: 7.44186, 23.813953
+  orig: 8.930233, 23.813953
+  offset: 0.744186, 0
+  index: -1
+F_Bottle_b
+  rotate: true
+  xy: 206.883721, 1.488372
+  size: 7.44186, 23.813953
+  orig: 8.930233, 23.813953
+  offset: 0.744186, 0
+  index: -1
+F_Bottle_c
+  rotate: false
+  xy: 503.069767, 145.116279
+  size: 7.44186, 23.813953
+  orig: 8.930233, 23.813953
+  offset: 0.744186, 0
+  index: -1
+F_Braid
+  rotate: false
+  xy: 1.488372, 189.023256
+  size: 102.697674, 161.488372
+  orig: 102.697674, 161.488372
+  offset: 0, 0
+  index: -1
+F_Chest
+  rotate: false
+  xy: 256.744186, 142.139535
+  size: 46.139535, 49.116279
+  orig: 46.139535, 49.116279
+  offset: 0, 0
+  index: -1
+F_Cloak_Back
+  rotate: false
+  xy: 1.488372, 352
+  size: 216.55814, 158.511628
+  orig: 216.55814, 158.511628
+  offset: 0, 0
+  index: -1
+F_Face
+  rotate: false
+  xy: 331.162791, 290.232558
+  size: 91.534884, 90.790698
+  orig: 93.023256, 92.27907
+  offset: 0.744186, 0.744186
+  index: -1
+F_Head_Back
+  rotate: false
+  xy: 219.534884, 320.744186
+  size: 110.139535, 91.534884
+  orig: 110.139535, 91.534884
+  offset: 0, 0
+  index: -1
+F_L_Acromion
+  rotate: false
+  xy: 290.232558, 192.744186
+  size: 51.348837, 32
+  orig: 51.348837, 32
+  offset: 0, 0
+  index: -1
+F_L_Arm
+  rotate: false
+  xy: 392.186047, 111.627907
+  size: 32, 40.930233
+  orig: 33.488372, 41.674419
+  offset: 0.744186, 0.744186
+  index: -1
+F_L_Armor
+  rotate: true
+  xy: 325.209302, 52.837209
+  size: 40.930233, 32
+  orig: 42.418605, 33.488372
+  offset: 0.744186, 0.744186
+  index: -1
+F_L_Bangs
+  rotate: false
+  xy: 395.162791, 226.232558
+  size: 41.674419, 62.511628
+  orig: 41.674419, 62.511628
+  offset: 0, 0
+  index: -1
+F_L_Belt_U
+  rotate: false
+  xy: 487.44186, 456.186047
+  size: 23.069767, 11.906977
+  orig: 23.813953, 11.906977
+  offset: 0, 0
+  index: -1
+F_L_Belt_Ua
+  rotate: true
+  xy: 235.162791, 37.209302
+  size: 14.139535, 9.674419
+  orig: 15.627907, 11.162791
+  offset: 0.744186, 0.744186
+  index: -1
+F_L_Bow
+  rotate: false
+  xy: 465.860465, 263.44186
+  size: 44.651163, 32
+  orig: 46.139535, 36.465116
+  offset: 0.744186, 0.744186
+  index: -1
+F_L_Calf
+  rotate: true
+  xy: 181.581395, 94.511628
+  size: 46.139535, 63.255814
+  orig: 54.325581, 65.488372
+  offset: 0.744186, 1.488372
+  index: -1
+F_L_Cloak
+  rotate: true
+  xy: 352, 442.046512
+  size: 68.465116, 133.953488
+  orig: 68.465116, 133.953488
+  offset: 0, 0
+  index: -1
+F_L_Cloak_U
+  rotate: false
+  xy: 246.325581, 91.534884
+  size: 62.511628, 49.116279
+  orig: 62.511628, 49.116279
+  offset: 0, 0
+  index: -1
+F_L_Ear
+  rotate: false
+  xy: 465.860465, 204.651163
+  size: 40.930233, 57.302326
+  orig: 40.930233, 57.302326
+  offset: 0, 0
+  index: -1
+F_L_Eye
+  rotate: false
+  xy: 422.697674, 81.116279
+  size: 32.744186, 23.813953
+  orig: 34.232558, 25.302326
+  offset: 0.744186, 0.744186
+  index: -1
+F_L_Eye_close
+  rotate: true
+  xy: 500.093023, 114.604651
+  size: 28.27907, 10.418605
+  orig: 30.511628, 11.906977
+  offset: 1.488372, 0.744186
+  index: -1
+F_L_Eyeball
+  rotate: false
+  xy: 331.162791, 391.44186
+  size: 19.348837, 20.837209
+  orig: 19.348837, 21.581395
+  offset: 0, 0.744186
+  index: -1
+F_L_Eyebrow
+  rotate: true
+  xy: 504.55814, 174.883721
+  size: 28.27907, 5.953488
+  orig: 28.27907, 5.953488
+  offset: 0, 0
+  index: -1
+F_L_Eyewhite
+  rotate: false
+  xy: 325.209302, 34.232558
+  size: 24.55814, 17.116279
+  orig: 26.046512, 18.604651
+  offset: 0.744186, 0.744186
+  index: -1
+F_L_Foot
+  rotate: false
+  xy: 289.488372, 1.488372
+  size: 52.093023, 31.255814
+  orig: 53.581395, 32.744186
+  offset: 0.744186, 0.744186
+  index: -1
+F_L_Foot_Back
+  rotate: false
+  xy: 425.674419, 106.418605
+  size: 34.976744, 26.790698
+  orig: 36.465116, 29.767442
+  offset: 0.744186, 0.744186
+  index: -1
+F_L_Forearm
+  rotate: true
+  xy: 90.790698, 58.046512
+  size: 43.162791, 40.186047
+  orig: 44.651163, 41.674419
+  offset: 0.744186, 0.744186
+  index: -1
+F_L_Hair
+  rotate: true
+  xy: 352, 382.511628
+  size: 58.046512, 112.372093
+  orig: 58.046512, 112.372093
+  offset: 0, 0
+  index: -1
+F_L_Hand
+  rotate: false
+  xy: 401.860465, 187.534884
+  size: 34.976744, 37.209302
+  orig: 36.465116, 37.953488
+  offset: 0.744186, 0.744186
+  index: -1
+F_L_Hand_A
+  rotate: false
+  xy: 395.906977, 49.860465
+  size: 25.302326, 24.55814
+  orig: 26.790698, 26.046512
+  offset: 0.744186, 0.744186
+  index: -1
+F_L_Knee
+  rotate: false
+  xy: 348.27907, 153.302326
+  size: 37.953488, 41.674419
+  orig: 39.44186, 43.162791
+  offset: 0.744186, 0.744186
+  index: -1
+F_L_Leg
+  rotate: true
+  xy: 181.581395, 52.837209
+  size: 40.186047, 63.255814
+  orig: 41.674419, 64.744186
+  offset: 0.744186, 0.744186
+  index: -1
+F_L_Rope
+  rotate: true
+  xy: 425.674419, 134.697674
+  size: 8.186047, 72.930233
+  orig: 8.186047, 72.930233
+  offset: 0, 0
+  index: -1
+F_L_Rope_S
+  rotate: false
+  xy: 343.069767, 10.418605
+  size: 18.604651, 22.325581
+  orig: 18.604651, 23.069767
+  offset: 0, 0.744186
+  index: -1
+F_L_Skirt
+  rotate: true
+  xy: 132.465116, 4.465116
+  size: 41.674419, 47.627907
+  orig: 43.162791, 48.372093
+  offset: 0.744186, 0.744186
+  index: -1
+F_L_Skirt_A
+  rotate: false
+  xy: 132.465116, 47.627907
+  size: 47.627907, 61.023256
+  orig: 47.627907, 61.023256
+  offset: 0, 0
+  index: -1
+F_L_Tape
+  rotate: false
+  xy: 178.604651, 202.418605
+  size: 22.325581, 148.093023
+  orig: 22.325581, 148.093023
+  offset: 0, 0
+  index: -1
+F_L_Tape_S
+  rotate: true
+  xy: 485.953488, 78.139535
+  size: 20.837209, 24.55814
+  orig: 21.581395, 25.302326
+  offset: 0, 0.744186
+  index: -1
+F_L_Tape_U
+  rotate: true
+  xy: 487.44186, 469.581395
+  size: 40.930233, 23.069767
+  orig: 40.930233, 23.069767
+  offset: 0, 0
+  index: -1
+F_L_Temple
+  rotate: true
+  xy: 202.418605, 192.744186
+  size: 35.72093, 86.325581
+  orig: 36.465116, 86.325581
+  offset: 0.744186, 0
+  index: -1
+F_L_Villus
+  rotate: false
+  xy: 181.581395, 142.139535
+  size: 73.674419, 49.116279
+  orig: 73.674419, 49.116279
+  offset: 0, 0
+  index: -1
+F_L_light
+  rotate: false
+  xy: 432.372093, 181.581395
+  size: 4.465116, 4.465116
+  orig: 5.953488, 5.953488
+  offset: 0.744186, 0.744186
+  index: -1
+F_M_Bangs
+  rotate: false
+  xy: 305.860465, 34.976744
+  size: 17.860465, 55.069767
+  orig: 17.860465, 56.55814
+  offset: 0, 0
+  index: -1
+F_Mouth_Happy
+  rotate: false
+  xy: 314.046512, 290.232558
+  size: 14.139535, 8.186047
+  orig: 15.627907, 10.418605
+  offset: 0.744186, 1.488372
+  index: -1
+F_Mouth_Smile
+  rotate: false
+  xy: 202.418605, 328.186047
+  size: 15.627907, 4.465116
+  orig: 17.860465, 5.953488
+  offset: 1.488372, 0.744186
+  index: -1
+F_Mouth_normal
+  rotate: false
+  xy: 504.55814, 170.418605
+  size: 2.976744, 2.976744
+  orig: 4.465116, 4.465116
+  offset: 0.744186, 0.744186
+  index: -1
+F_Pelvis
+  rotate: true
+  xy: 94.511628, 8.186047
+  size: 48.372093, 36.465116
+  orig: 49.860465, 37.953488
+  offset: 0.744186, 0.744186
+  index: -1
+F_R_Acromion
+  rotate: false
+  xy: 462.139535, 100.465116
+  size: 34.232558, 32.744186
+  orig: 34.232558, 32.744186
+  offset: 0, 0
+  index: -1
+F_R_Arm
+  rotate: true
+  xy: 465.860465, 144.372093
+  size: 24.55814, 35.72093
+  orig: 26.046512, 37.209302
+  offset: 0.744186, 0.744186
+  index: -1
+F_R_Armor
+  rotate: true
+  xy: 456.930233, 78.139535
+  size: 20.837209, 27.534884
+  orig: 22.325581, 29.767442
+  offset: 0.744186, 0.744186
+  index: -1
+F_R_Bangs
+  rotate: true
+  xy: 246.325581, 34.232558
+  size: 55.813953, 58.046512
+  orig: 56.55814, 58.046512
+  offset: 0, 0
+  index: -1
+F_R_Belt_U
+  rotate: false
+  xy: 487.44186, 442.046512
+  size: 20.093023, 12.651163
+  orig: 20.093023, 12.651163
+  offset: 0, 0
+  index: -1
+F_R_Belt_Ua
+  rotate: false
+  xy: 497.860465, 104.930233
+  size: 9.674419, 8.186047
+  orig: 11.162791, 9.674419
+  offset: 0.744186, 0.744186
+  index: -1
+F_R_Bow
+  rotate: true
+  xy: 393.674419, 75.906977
+  size: 34.232558, 27.534884
+  orig: 35.72093, 29.023256
+  offset: 0.744186, 0.744186
+  index: -1
+F_R_Calf
+  rotate: false
+  xy: 130.232558, 110.139535
+  size: 49.860465, 77.395349
+  orig: 55.813953, 77.395349
+  offset: 5.953488, 0
+  index: -1
+F_R_Cloak
+  rotate: false
+  xy: 105.674419, 213.581395
+  size: 71.44186, 136.930233
+  orig: 71.44186, 136.930233
+  offset: 0, 0
+  index: -1
+F_R_Cloak_U
+  rotate: false
+  xy: 310.325581, 95.255814
+  size: 40.186047, 45.395349
+  orig: 46.139535, 49.860465
+  offset: 0, 0
+  index: -1
+F_R_Ear
+  rotate: false
+  xy: 181.581395, 10.418605
+  size: 52.093023, 40.930233
+  orig: 52.093023, 40.930233
+  offset: 0, 0
+  index: -1
+F_R_Eye
+  rotate: false
+  xy: 450.232558, 55.069767
+  size: 22.325581, 21.581395
+  orig: 23.813953, 23.069767
+  offset: 0.744186, 0.744186
+  index: -1
+F_R_Eye_close
+  rotate: true
+  xy: 496.372093, 55.813953
+  size: 20.837209, 14.139535
+  orig: 22.325581, 15.627907
+  offset: 0.744186, 0.744186
+  index: -1
+F_R_Eyeball
+  rotate: false
+  xy: 314.046512, 299.906977
+  size: 13.395349, 19.348837
+  orig: 13.395349, 19.348837
+  offset: 0, 0
+  index: -1
+F_R_Eyebrow
+  rotate: false
+  xy: 177.116279, 196.465116
+  size: 22.325581, 4.465116
+  orig: 22.325581, 4.465116
+  offset: 0, 0
+  index: -1
+F_R_Eyewhite
+  rotate: false
+  xy: 202.418605, 334.139535
+  size: 15.627907, 16.372093
+  orig: 17.116279, 17.860465
+  offset: 0.744186, 0.744186
+  index: -1
+F_R_Finger
+  rotate: true
+  xy: 432.372093, 144.372093
+  size: 29.767442, 32
+  orig: 31.255814, 32.744186
+  offset: 0.744186, 0.744186
+  index: -1
+F_R_Foot
+  rotate: false
+  xy: 235.162791, 1.488372
+  size: 52.837209, 31.255814
+  orig: 54.325581, 32.744186
+  offset: 0.744186, 0.744186
+  index: -1
+F_R_Foot_Back
+  rotate: false
+  xy: 146.604651, 189.767442
+  size: 29.023256, 22.325581
+  orig: 30.511628, 23.813953
+  offset: 0.744186, 0.744186
+  index: -1
+F_R_Forearm
+  rotate: false
+  xy: 352, 110.883721
+  size: 38.697674, 40.930233
+  orig: 40.186047, 42.418605
+  offset: 0.744186, 0.744186
+  index: -1
+F_R_Hair
+  rotate: false
+  xy: 90.790698, 102.697674
+  size: 37.953488, 84.837209
+  orig: 39.44186, 84.837209
+  offset: 1.488372, 0
+  index: -1
+F_R_Knee
+  rotate: false
+  xy: 438.325581, 175.627907
+  size: 26.046512, 34.232558
+  orig: 27.534884, 37.209302
+  offset: 0.744186, 2.232558
+  index: -1
+F_R_Leg
+  rotate: false
+  xy: 465.860465, 378.790698
+  size: 44.651163, 61.767442
+  orig: 44.651163, 61.767442
+  offset: 0, 0
+  index: -1
+F_R_Palm
+  rotate: false
+  xy: 358.697674, 75.906977
+  size: 33.488372, 33.488372
+  orig: 34.976744, 34.976744
+  offset: 0.744186, 0.744186
+  index: -1
+F_R_Tape_U
+  rotate: false
+  xy: 474.046512, 55.813953
+  size: 20.837209, 20.837209
+  orig: 22.325581, 22.325581
+  offset: 0.744186, 0.744186
+  index: -1
+F_R_Temple
+  rotate: false
+  xy: 424.186047, 297.674419
+  size: 40.186047, 83.348837
+  orig: 40.186047, 83.348837
+  offset: 0, 0
+  index: -1
+F_R_Villus
+  rotate: true
+  xy: 304.372093, 142.139535
+  size: 49.116279, 42.418605
+  orig: 49.116279, 42.418605
+  offset: 0, 0
+  index: -1
+F_R_light
+  rotate: false
+  xy: 456.930233, 101.209302
+  size: 3.72093, 3.72093
+  orig: 5.209302, 4.465116
+  offset: 0.744186, 0.744186
+  index: -1
+F_S_Ear
+  rotate: false
+  xy: 422.697674, 53.581395
+  size: 26.046512, 26.046512
+  orig: 27.534884, 27.534884
+  offset: 0.744186, 0.744186
+  index: -1
+F_Skirt
+  rotate: true
+  xy: 314.046512, 226.232558
+  size: 62.511628, 79.627907
+  orig: 62.511628, 79.627907
+  offset: 0, 0
+  index: -1
+F_Skirt_A
+  rotate: false
+  xy: 1.488372, 56.55814
+  size: 87.813953, 130.976744
+  orig: 87.813953, 130.976744
+  offset: 0, 0
+  index: -1
+F_Skirt_A_Back
+  rotate: false
+  xy: 202.418605, 229.953488
+  size: 110.139535, 89.302326
+  orig: 110.139535, 89.302326
+  offset: 0, 0
+  index: -1
+F_Skirt_Back
+  rotate: false
+  xy: 438.325581, 211.348837
+  size: 26.046512, 84.837209
+  orig: 26.790698, 84.837209
+  offset: 0, 0
+  index: -1
+F_Skirt_belt_a
+  rotate: false
+  xy: 343.069767, 196.465116
+  size: 57.302326, 28.27907
+  orig: 57.302326, 28.27907
+  offset: 0, 0
+  index: -1
+F_Skirt_belt_b
+  rotate: true
+  xy: 465.860465, 296.930233
+  size: 80.372093, 41.674419
+  orig: 80.372093, 41.674419
+  offset: 0, 0
+  index: -1
+F_Villus_Back
+  rotate: false
+  xy: 1.488372, 4.465116
+  size: 91.534884, 50.604651
+  orig: 93.023256, 52.093023
+  offset: 0.744186, 0.744186
+  index: -1
+F_Waist
+  rotate: false
+  xy: 387.72093, 154.046512
+  size: 43.162791, 32
+  orig: 43.162791, 32.744186
+  offset: 0, 0.744186
+  index: -1
+F_Waist_belt_a
+  rotate: false
+  xy: 358.697674, 55.069767
+  size: 35.72093, 19.348837
+  orig: 37.209302, 21.581395
+  offset: 0.744186, 1.488372
+  index: -1
+F_Waist_belt_b
+  rotate: false
+  xy: 105.674419, 189.023256
+  size: 39.44186, 23.069767
+  orig: 40.930233, 24.55814
+  offset: 0.744186, 0.744186
+  index: -1
+F_Yeiiow_Tape
+  rotate: true
+  xy: 465.860465, 170.418605
+  size: 32.744186, 37.209302
+  orig: 32.744186, 37.209302
+  offset: 0, 0
+  index: -1
+F_tail
+  rotate: false
+  xy: 219.534884, 413.767442
+  size: 130.976744, 96.744186
+  orig: 130.976744, 96.744186
+  offset: 0, 0
+  index: -1

@@ -227,13 +227,99 @@
     });
   }
   function doLogout() {
+    // 必须先清关卡状态（再清账号），否则登出画面残留上一局塔/金币/buff/波次信息
+    resetLevelState();
     accountSetLoggedIn(null);
     toast('已退出登录', 'info');
-    log('i', '已退出登录。');
+    log('i', '已退出登录，关卡状态已重置。');
     closeAccountModal();
   }
   // 别名：SSO 自动被踢下线时 api() 内部直接调用
   var accountLogout = doLogout;
+
+  // ============================================================
+  // resetLevelState()：同步、无依赖、幂等 —— 把「游戏关卡状态」归零
+  // 触发场景：
+  //   1) 用户主动点退出登录 (doLogout)
+  //   2) SSO 被踢下线自动登出
+  //   3) 以后"回到主菜单 / 重新开局"可直接复用
+  // 说明：
+  //   - state.cfg / canvas / cell / cols / rows / tiles / grid 保留（画面尺寸和地图基础不变，
+  //     只把玩家放置的塔/墙、战斗、金币、阶段、候选塔清空）。
+  //     如果还没加载过地图（state.cfg==null），则跳过相关重置。
+  // ============================================================
+  function resetLevelState() {
+    // A) 停 RAF 战斗循环，避免登出时战斗还在跑不断扣血
+    if (state.rafId) {
+      try { cancelAnimationFrame(state.rafId); } catch (_) {}
+      state.rafId = 0;
+    }
+    state.running = false;
+    state.lastFrame = 0;
+
+    // B) 若地图已加载：清空玩家放置物、战斗数据
+    if (state.cfg) {
+      var md = state.cfg.mapDetail;
+      // tiles：还原成地图原始 tiles（不保留玩家放的塔/墙）
+      if (md && Array.isArray(md.tiles)) {
+        state.tiles = md.tiles.slice();
+      } else {
+        for (var k = 0; k < state.tiles.length; k++) {
+          // 只保留地形类（保留 T_PATH/T_NOPATH/T_SPAWN/T_BASE/T_EDGE）：其他置 T_NOPATH=0
+          var t = state.tiles[k] | 0;
+          if (t !== 0 && t !== 1 && t !== 2 && t !== 3 && t !== 4) state.tiles[k] = 0;
+        }
+      }
+      // grid：全部清空（塔/墙/候选）
+      for (var i = 0; i < state.grid.length; i++) state.grid[i] = null;
+      state.towersByInst = {};
+      state.nextInstId = 1;
+      state.enemies = [];
+      state.projectiles = [];
+      state.spawnQueue = [];
+      state.waveElapsed = 0;
+      state.waveKillGold = 0;
+      state.waveBonusGold = 0;
+      state.placementUsed = 0;
+      state.placementTotal = state.cfg.placementPerWave ? Number(state.cfg.placementPerWave) || 5 : 5;
+      state.candidates = [];
+      state.activeBuffs = [];
+      // 玩家数值：归零到配置起始值
+      state.gold = 50;
+      state.baseMaxHP = (md && md.base && md.base.hp) ? Number(md.base.hp) : 20;
+      state.baseHP = state.baseMaxHP;
+      state.maxWaves = (state.cfg.waves || []).length | 0;
+      state.waveIndex = 0;
+      state.luckLevel = Number(state.cfg.luckInitialLevel) || 1;
+    } else {
+      // 地图都没加载过：至少把玩家/战斗数组清空
+      state.tiles = [];
+      state.grid = [];
+      state.towersByInst = {};
+      state.enemies = [];
+      state.projectiles = [];
+      state.spawnQueue = [];
+      state.activeBuffs = [];
+      state.candidates = [];
+      state.gold = 0; state.baseHP = 0; state.baseMaxHP = 0;
+      state.waveIndex = 0; state.maxWaves = 0; state.luckLevel = 1;
+      state.placementUsed = 0; state.placementTotal = 5;
+    }
+    state.phase = PHASE.MENU;
+
+    // C) 关闭所有可能打开的关卡模态（选塔/波末/胜负），否则登出后还能看到上一局的结算
+    ['reserve-modal','waveend-modal','end-modal'].forEach(function (m) {
+      var el = document.getElementById(m);
+      if (el) el.classList.add('hidden');
+    });
+
+    // D) 乐观锁版本戳：与换号/登出强绑定，确保下次登录不会串用上一个账号的存档版本
+    _resetSaveVersion();
+
+    // E) HUD + 画面刷新（HUD 会显示 MENU / gold=50 / hp=满血 / wave=0/MAX 等初始状态）
+    try { refreshHUD(); } catch (_) {}
+    try { draw(); } catch (_) {}
+  }
 
   // ---------- Save / Load (V3-1) ----------
   // 构造存档 payload：保存游戏中所有跨波持久字段

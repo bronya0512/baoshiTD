@@ -250,8 +250,39 @@
     };
   }
 
+  // ---------- 防作弊：阶段级保存 / 读档门禁 ----------
+  // 手动保存 / 手动读档都可能被玩家用于「Roll 不满意就读档回滚 → 无限刷稀有塔」
+  // 因此任何处于「已 Roll 了塔但尚未完成 RESERVE」的阶段都禁止手动读写存档
+  function canManualSaveOrLoad(s) {
+    var ph = s.phase;
+    // 明确白名单：MENU（对局没开始）、波末结算 / WIN / LOSE（已结束/暂停的稳定点）
+    if (ph === PHASE.MENU || ph === PHASE.WAVEEND || ph === PHASE.WIN || ph === PHASE.LOSE) return { ok: true };
+    // PREPARE：只有放置机会完全没开始用（一次 Roll 都没做）才允许
+    // 一旦 placementUsed > 0，说明至少 Roll 过一次塔了，此时存/读档等于刷塔入口
+    if (ph === PHASE.PREPARE) {
+      if ((s.placementUsed || 0) === 0) return { ok: true };
+      return { ok: false, reason: 'PREP_PLACING', msg: '已经开始 Roll 塔（已放置 ' + s.placementUsed + '/' + s.placementTotal + '），禁止存/读档防刷塔。如需放弃本局进度请点「重开」。' };
+    }
+    // RESERVE：已经完整看完 5 个 Roll 结果，看完了再读档回滚是纯作弊
+    if (ph === PHASE.RESERVE) return { ok: false, reason: 'RESERVE_PEEKED', msg: '已查看保留弹窗（5 个 Roll 结果都展示了），禁止存/读档防刷塔。如需放弃本局进度请点「重开」。' };
+    // BATTLE：战斗中当然不允许
+    if (ph === PHASE.BATTLE) return { ok: false, reason: 'BATTLE', msg: '战斗阶段禁止存/读档（防作弊）。' };
+    return { ok: false, reason: 'UNKNOWN', msg: '当前阶段 (' + ph + ') 禁止存/读档。' };
+  }
+
   function saveNow(isAuto) {
     if (!_acc) { toast('请先登录再保存', 'er'); setMsg('未登录无法云端保存', true); return Promise.resolve({ ok: false }); }
+    // autosave（波末/失败触发）是代码内部安全调用点，直接放行
+    // 手动点按钮必须过防刷门禁
+    if (!isAuto) {
+      var g1 = canManualSaveOrLoad(state);
+      if (!g1.ok) {
+        toast('禁止保存：' + g1.msg, 'er');
+        setMsg(g1.msg, true);
+        log('w', '手动保存被拒绝: ' + g1.reason + ' ' + g1.msg);
+        return Promise.resolve({ ok: false });
+      }
+    }
     if (state.phase === PHASE.BATTLE) {
       toast('战斗阶段禁止保存（防作弊）', 'er');
       setMsg('战斗中禁止写入存档，请等待波末或结束', true);
@@ -369,6 +400,14 @@
 
   function loadSave() {
     if (!_acc) { toast('请先登录再读档', 'er'); setMsg('未登录无法云端读档', true); return Promise.resolve({ ok: false }); }
+    // 手动读档必须过防刷门禁（防止：Roll 不满意 → 读档 → Roll 次数清零 → 无限刷塔）
+    var g2 = canManualSaveOrLoad(state);
+    if (!g2.ok) {
+      toast('禁止读档：' + g2.msg, 'er');
+      setMsg(g2.msg, true);
+      log('w', '手动读档被拒绝: ' + g2.reason + ' ' + g2.msg);
+      return Promise.resolve({ ok: false });
+    }
     return api('/api/save', { method: 'GET' }).then(function (r) {
       if (!r.ok) {
         toast('读档失败：' + (r.message || ('HTTP ' + r.status)), 'er');
@@ -787,7 +826,7 @@
     var prevTile = t;
     var prevGrid = state.grid[idx(gx, gy)] || null;
     var instId = state.nextInstId++;
-    var gridObj = { type: T_CAND, instId: instId, towerCfg: towerCfg, cooldown: 0 };
+    var gridObj = { type: T_CAND, instId: instId, towerCfgId: towerCfg.id, rarity: towerCfg.rarity, towerCfg: towerCfg, cooldown: 0 };
     var res = terrainGate({ kind: 'place', gx: gx, gy: gy, newTile: T_CAND, gridObj: gridObj });
     if (!res.ok) return res;
     state.towersByInst[instId] = gridObj;
@@ -833,7 +872,7 @@
       var oldGrid = state.grid[idx(c.gx, c.gy)];
       if (c.instId === instId) {
         // 保留 → T_TOWER
-        var newGridObj = { type: T_TOWER, instId: c.instId, towerCfg: c.towerCfg, cooldown: 0 };
+        var newGridObj = { type: T_TOWER, instId: c.instId, towerCfgId: c.towerCfg.id, rarity: c.towerCfg.rarity, towerCfg: c.towerCfg, cooldown: 0 };
         var r1 = terrainGate({ kind: 'reserve_tower', gx: c.gx, gy: c.gy, newTile: T_TOWER, gridObj: newGridObj });
         if (!r1.ok) { undoAll(); return r1; }
         state.towersByInst[c.instId] = newGridObj;

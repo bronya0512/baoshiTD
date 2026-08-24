@@ -4006,7 +4006,9 @@
       if (fx.stat.rangeMul)  rangeMul *= fx.stat.rangeMul;
       if (fx.stat.control) {
         // 减速塔：slowStrengthMul 放大；AOE 塔：aoeRadiusMul 放大；否则攻速 bonus（interval 更小）
-        var isSlowTower = (cfg.element === 'ice' || cfg.element === 'poison');
+        // 元素数值配置化：是否减速塔由 gems.json baseBonus.slowOnHitPct01>0 推导（不再硬编码 ice/poison）
+        var _ebSlow = state.cfg.getElementBonus(cfg.element);
+        var isSlowTower = !!(_ebSlow && _ebSlow.slowPct > 0);
         var isAOETower   = !!(cfg.isAOE && Number(cfg.aoeRadiusPx) > 0);
         if (isSlowTower && typeof fx.stat.slowStrengthMul === 'number') slowMulExtra = fx.stat.slowStrengthMul;
         if (!isSlowTower && !isAOETower && typeof fx.stat.fallbackAttackIntervalMul === 'number') intvMul *= fx.stat.fallbackAttackIntervalMul;
@@ -4017,10 +4019,10 @@
     var baseRangeCells = Number(cfg.rangeInCells) || 0;
     var effRangePx = baseRangeCells * cs * rangeMul;
     var baseRangePx = baseRangeCells * cs;
-    // 减速：基础效果按 element 查表（与 damageEnemy 保持一致）；control effect 额外 × slowMulExtra（仅减速塔）
-    var baseSlowPct = 0, baseSlowSec = 0;
-    if (cfg.element === 'ice')    { baseSlowPct = 0.30; baseSlowSec = 2.0; }
-    if (cfg.element === 'poison') { baseSlowPct = 0.20; baseSlowSec = 1.5; }
+    // 减速：基础效果读 gems.json 元素配置（与 damageEnemy 保持一致）；control effect 额外 × slowMulExtra（仅减速塔）
+    var _ebCalc = state.cfg.getElementBonus(cfg.element);
+    var baseSlowPct = (_ebCalc && _ebCalc.slowPct) || 0;
+    var baseSlowSec = (_ebCalc && _ebCalc.slowSec) || 0;
     var effSlowPct = (baseSlowPct > 0) ? Math.min(0.95, baseSlowPct * (mul.slowStrengthMulAll || 1) * slowMulExtra) : 0;
     var dps = (effIntv > 0) ? (effDmg / effIntv) : 0;
     // AOE：基础 AOE 半径（像素）不变，control L3 effect 时 AOE radius × aoeRadiusMul
@@ -4556,18 +4558,34 @@
     // ---- V4-7 能量技能：伤害倍率（对 finalDamageOverride / 非 override 两条路径都生效，clamp ≥1） ----
     var skillDmgMul = Number(ext.skillDamageMul) || 1;
     if (!(skillDmgMul >= 1)) skillDmgMul = 1;
-    // V4 Task9：finalDamageOverride 优先级最高（上层 stepTowers/弹射链 已按 level/effect/double_shot/ricochet 算好）
-    var dmg;
+    // ---- V4-9 伤害类型三分支：physical / magic / true（towerCfg.damageType 配置，缺省 physical）----
+    //   基础伤害 = 攻击与技能计算结果（buff×技能倍率；或上层 finalDamageOverride 已算好的弹射链/双击值）
+    //   物理：实际 = 基础 - 护甲（减法；护甲已含地图 envArmorMul 与穿甲 armorIgnore）
+    //   魔法：实际 = 基础 × (1 - 法抗/100)（法抗 0~100 百分比减免）
+    //   真实：实际 = 基础（无视护甲/法抗）
+    //   元素抗性 resistances 为独立克制维度，三种类型统一再乘（保持元素克制玩法）
+    var dmgType = (towerCfg && towerCfg.damageType) ? String(towerCfg.damageType) : 'physical';
+    if (dmgType !== 'magic' && dmgType !== 'true') dmgType = 'physical';
+    var magicResist = Math.max(0, Math.min(100, Number(e.cfg.magicResist) || 0)) / 100;
+    var baseDmgFinal;
     if (typeof ext.finalDamageOverride === 'number' && ext.finalDamageOverride >= 0) {
-      dmg = Math.max(1, Math.floor(ext.finalDamageOverride * skillDmgMul));
+      // V4 Task9：finalDamageOverride 优先级最高（上层 stepTowers/弹射链 已按 level/effect/double_shot/ricochet 算好）
+      baseDmgFinal = Math.max(1, Math.floor(ext.finalDamageOverride * skillDmgMul));
     } else {
-      var baseDmg = (towerCfg ? (Number(towerCfg.baseDamage) || 0) : 0);
-      dmg = baseDmg * (buffMul ? (buffMul.towerDamageMulAll || 1) : 1);
-      dmg = dmg * skillDmgMul;
-      dmg *= Math.max(0, 1 - armor * 0.5);
-      dmg *= Math.max(0, 1 - res);
-      dmg = Math.max(1, Math.floor(dmg));
+      baseDmgFinal = (towerCfg ? (Number(towerCfg.baseDamage) || 0) : 0)
+                   * (buffMul ? (buffMul.towerDamageMulAll || 1) : 1)
+                   * skillDmgMul;
     }
+    var dmg;
+    if (dmgType === 'true') {
+      dmg = baseDmgFinal;                     // 真实：无视护甲/法抗
+    } else if (dmgType === 'magic') {
+      dmg = baseDmgFinal * (1 - magicResist); // 魔法：百分比法抗
+    } else {
+      dmg = baseDmgFinal - armor;             // 物理：减法护甲
+    }
+    dmg *= Math.max(0, 1 - res);              // 元素抗性：三种类型统一生效
+    dmg = Math.max(1, Math.floor(dmg));
 
     // ---- shield 先抵扣（与 Task7 一致） ----
     var dealtToHp = dmg;
@@ -4615,8 +4633,9 @@
     // V4-7 新增：能量技能减速 skillSlowMul(0.05~1, 与元素 slowPct 并集，skillSlowTicksSec 独立持续)
     var slowPct = 0, slowSec = 0;
     if (towerCfg) {
-      if (towerCfg.element === 'ice')    { slowPct = 0.30; slowSec = 2.0; }
-      if (towerCfg.element === 'poison') { slowPct = 0.20; slowSec = 1.5; }
+      // 元素数值配置化：减速读 gems.json baseBonus.slowOnHitPct01/slowOnHitSec（loader 兜底原数值）
+      var _ebHit = state.cfg.getElementBonus(towerCfg.element);
+      if (_ebHit && _ebHit.slowPct > 0) { slowPct = _ebHit.slowPct; slowSec = _ebHit.slowSec; }
     }
     // V4-7 技能减速：skillSlowMul 表示剩余速度比（0.05~1），换算为 slowPct = 1 - slowMul；与元素减速取更强值
     var sSlowMul = Number(ext.skillSlowMul) || 1;
@@ -4688,9 +4707,10 @@
     var enemyName = (e.cfg && e.cfg.name) ? e.cfg.name : '敌人';
     var isBoss = !!(e.cfg && e.cfg.isBoss);
     // 稀有度奖励 Roll（按 dropBonusRate + Buff add）
+    // 元素数值配置化：light/dark 击杀额外掉率读 gems.json baseBonus.killGemChanceAdd01
+    var _ebKill = (towerCfg && state.cfg.getElementBonus) ? state.cfg.getElementBonus(towerCfg.element) : null;
     var rollChance = ((e.cfg && e.cfg.dropBonusRate) ? Number(e.cfg.dropBonusRate) : 0)
-                   + ((towerCfg && towerCfg.element === 'light') ? 0.15 : 0)
-                   + ((towerCfg && towerCfg.element === 'dark')  ? 0.10 : 0);
+                   + ((_ebKill && _ebKill.killGemAdd) || 0);
     if (buffMul && typeof buffMul.killBonusGoldChanceAddAll === 'number') rollChance += buffMul.killBonusGoldChanceAddAll;
     var rolls = isBoss ? 2 : 1;
     var results = [];
@@ -5508,7 +5528,8 @@
         '<span class="l3v-desc">' + (fx.desc || '') + '</span>' +
         '</span></div>';
     }
-    html += '<div class="row"><span class="k">伤害</span><span class="v">' + fmtEffBase(Math.round(tev.eff.damage), Math.round(tev.base.damage), tev.aoeTag, 0) + '</span></div>';
+    var dmgTypeLabel = (cfg.damageType === 'magic') ? '魔法' : (cfg.damageType === 'true') ? '真实' : '物理';
+    html += '<div class="row"><span class="k">伤害（' + dmgTypeLabel + '）</span><span class="v">' + fmtEffBase(Math.round(tev.eff.damage), Math.round(tev.base.damage), tev.aoeTag, 0) + '</span></div>';
     html += '<div class="row"><span class="k">攻击间隔</span><span class="v">' + fmtEffBase(tev.eff.interval.toFixed(2), tev.base.interval.toFixed(2), ' 秒', -1) + '</span></div>';
     html += '<div class="row"><span class="k">攻击范围</span><span class="v">' + fmtEffBase(tev.eff.rangeCells.toFixed(2), tev.base.rangeCells.toFixed(2), ' 格', -1) + ' <span class="base-meta">≈ ' + Math.round(tev.eff.rangePx) + ' px</span></span></div>';
     html += '<div class="row"><span class="k">减速效果</span><span class="v">' + slowText(tev.eff.slowPct, tev.eff.slowSec, tev.base.slowPct, tev.base.slowSec) + '</span></div>';

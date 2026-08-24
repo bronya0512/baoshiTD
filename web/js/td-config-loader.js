@@ -204,6 +204,8 @@
       var eCfg = resolveEnergyCfg(t.energyCfgId);
       var sCfg = resolveSkillCfg(t.skillId);
       return Object.assign({}, t, {
+        // V4-9 伤害类型规范化：physical（缺省）/ magic / true；非法/缺失值回退 physical
+        damageType: (t.damageType === 'magic' || t.damageType === 'true') ? t.damageType : 'physical',
         cost: lv.cost,
         rangeInCells: lv.attackRange,
         baseDamage: lv.baseDamage,
@@ -225,6 +227,33 @@
     if (cfg.gems && cfg.gems.rarities) {
       gemIdx.byRarity = {};
       cfg.gems.rarities.forEach(function (r) { gemIdx.byRarity[r.key] = r; });
+    }
+
+    // ===== 元素数值配置化：gems.json elements[].baseBonus 是唯一配置源 =====
+    // 主链路（td-game.js 减速/击杀掉率）不再硬编码元素数值；
+    // 缺字段/非法值 → 默认表（= 原硬编码值），保证不配置时行为零变化。
+    //   可配字段：slowOnHitPct01（0~0.95 减速比例）、slowOnHitSec（持续秒）、killGemChanceAdd01（0~1 击杀额外掉率）
+    var ELEM_BONUS_DEFAULTS = {
+      fire:    { slowPct: 0,    slowSec: 0,   killGemAdd: 0    },
+      ice:     { slowPct: 0.30, slowSec: 2.0, killGemAdd: 0    },
+      thunder: { slowPct: 0,    slowSec: 0,   killGemAdd: 0    },
+      poison:  { slowPct: 0.20, slowSec: 1.5, killGemAdd: 0    },
+      light:   { slowPct: 0,    slowSec: 0,   killGemAdd: 0.15 },
+      dark:    { slowPct: 0,    slowSec: 0,   killGemAdd: 0.10 }
+    };
+    var _elemBonusCache = {};
+    function getElementBonus(element) {
+      if (Object.prototype.hasOwnProperty.call(_elemBonusCache, element)) return _elemBonusCache[element];
+      var d = ELEM_BONUS_DEFAULTS[element] || { slowPct: 0, slowSec: 0, killGemAdd: 0 };
+      var b = (gemIdx.byElement && gemIdx.byElement[element] && gemIdx.byElement[element].baseBonus) || {};
+      var sp = Number(b.slowOnHitPct01), ss = Number(b.slowOnHitSec), kg = Number(b.killGemChanceAdd01);
+      var res = {
+        slowPct:    (sp > 0 && sp <= 0.95) ? sp : d.slowPct,
+        slowSec:    (ss > 0) ? ss : d.slowSec,
+        killGemAdd: (kg > 0 && kg <= 1) ? kg : d.killGemAdd
+      };
+      _elemBonusCache[element] = res;
+      return res;
     }
 
     // ---- luck ----
@@ -397,6 +426,8 @@
       luckByLevel: luckByLevel,
       rollTowerByLuck: function (level) { return rollTowerByLuck(level, towersArr, towersById); },
       rollBonusRarityByLuck: rollBonusRarityByLuck,
+      // 元素数值查表（gems.json baseBonus 驱动；td-game.js 减速/掉率统一走这里）
+      getElementBonus: getElementBonus,
       // buffs
       buffsList: buffsList,
       buffsById: buffsById,

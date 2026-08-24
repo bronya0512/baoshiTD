@@ -35,6 +35,8 @@ type TowerConfig struct {
 	// ---- V4-7 能量 / 技能解耦：每塔独立配置，允许多塔共享同一个 energyCfgId / skillId ----
 	EnergyCfgId string `json:"energyCfgId,omitempty"` // 对应 energy-cfgs.json 的 id；空字符串 => 前端用默认 normal
 	SkillId     string `json:"skillId,omitempty"`     // 对应 tower-skills.json 的 id；空字符串 => 前端用默认 double_strike
+	// ---- V4-9 伤害类型：physical（缺省，减法护甲）/ magic（百分比法抗）/ true（无视护甲与法抗） ----
+	DamageType  string `json:"damageType,omitempty"`
 }
 
 // TowerEnergyCfg 塔能量配置（V4-7 独立文件 conf/game/energy-cfgs.json）
@@ -93,6 +95,7 @@ type EnemyConfig struct {
 	BaseHP      float64            `json:"baseHP"`
 	Speed       float64            `json:"speed"` // 像素/秒
 	Armor       float64            `json:"armor"`
+	MagicResist float64            `json:"magicResist,omitempty"` // V4-9 法抗 0~100（百分比减免，仅对 magic 伤害类型生效）
 	Resistances map[string]float64 `json:"resistances"`
 	Flying      bool               `json:"flying"`
 	IsBoss      bool               `json:"isBoss"`

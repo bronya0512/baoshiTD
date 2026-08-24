@@ -1,45 +1,54 @@
 # ==================== 构建阶段 ====================
+# 注意：multi-stage，Go builder + 运行期用 scratch/alpine 可保持镜像 < 50MB
 FROM golang:1.25-alpine AS builder
 
-# 设置工作目录
 WORKDIR /app
 
-# 安装依赖（利用缓存层，先复制 go.mod 和 go.sum）
+# 先复制 go.mod / go.sum 以便缓存 go mod download
 COPY go.mod go.sum ./
 RUN go mod download
 
-# 复制源代码
+# 源代码 + 运行期静态资源（构建阶段 COPY . 即可，构建后只拷所需目录到下一阶段）
 COPY . .
 
-# 编译（纯 Go，无 CGO，去除调试信息以减小体积）
-RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o baoshiTD .
+# 纯静态编译：无 CGO + 去掉调试信息减小体积
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -ldflags="-s -w" -o baoshitd-server .
 
 # ==================== 运行阶段 ====================
 FROM alpine:latest
 
-# 设置时区
+# 时区：上海
 ENV TZ=Asia/Shanghai
-RUN apk add --no-cache tzdata && \
-    ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
+RUN apk add --no-cache tzdata ca-certificates wget && \
+    ln -snf /usr/share/zoneinfo/$TZ /localtime && \
     echo $TZ > /etc/timezone
 
-# 复制二进制文件和静态资源
 WORKDIR /app
-COPY --from=builder /app/baoshiTD .
-COPY --from=builder /app/web ./web
-COPY --from=builder /app/api ./api
 
-# 创建非 root 用户运行（安全）
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup && \
+# 二进制
+COPY --from=builder /app/baoshitd-server ./baoshitd-server
+# 静态资源 & 配置（项目硬性约束：镜像里必须包含静态 Web 资源 + OpenAPI spec）
+COPY --from=builder /app/web        ./web
+COPY --from=builder /app/api        ./api
+COPY --from=builder /app/conf       ./conf
+COPY --from=builder /app/assets     ./assets
+
+# 日志目录（按项目约束日志写到 ./logs/，且以非 root 运行时必须可写）
+RUN mkdir -p /app/logs
+
+# 非 root 用户运行（项目硬性约束 security）
+RUN addgroup -S appgroup && \
+    adduser  -S appuser  -G appgroup && \
     chown -R appuser:appgroup /app
 USER appuser
 
-# 暴露端口
+# 监听端口（必须与 main.go 默认一致，可通过环境变量 TD_PORT 覆盖）
 EXPOSE 8080
 
-# 健康检查
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD wget -qO- http://localhost:8080/api/health || exit 1
+# 健康检查：调 /api/health（wget 来自 alpine busybox 版本够用）
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget -qO- http://127.0.0.1:8080/api/health >/dev/null || exit 1
 
-# 启动
-ENTRYPOINT ["./baoshiTD"]
+# 启动（保持 shell-form，方便环境变量生效）
+ENTRYPOINT ["./baoshitd-server"]

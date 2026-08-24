@@ -1,0 +1,127 @@
+[
+  {
+    "id": 101,
+    "name": "元素融合塔",
+    "code": "FUSION_EPIC",
+    "element": "mixed",
+    "rarity": "epic",
+    "special": true,
+    "description": "融合火/冰/雷三元素，每次攻击随机选择元素，同时造成减速 + 灼烧 + 感电多段命中。",
+    "levels": [
+      {
+        "level": 1,
+        "baseDamage": 95,
+        "attackRange": 3.0,
+        "attackSpeed": 1.55,
+        "cost": 0,
+        "upgradeCost": 0
+      }
+    ],
+    "canTargetFly": true,
+    "isAOE": true,
+    "aoeRadiusPx": 45,
+    "color": "#f6ad55",
+    "passiveId": "fusion_tri_element",
+    "passiveDesc": "每次攻击随机从 {火/冰/雷} 选择元素，附带减速 25% 1.5s + 灼烧 DoT 5/s 2s + 感电连锁 1 次 40% 伤害。"
+  },
+  {
+    "id": 102,
+    "name": "破坏者",
+    "code": "DESTROYER_EPIC",
+    "element": "fire",
+    "rarity": "epic",
+    "special": true,
+    "description": "重型破坏塔，每次命中附带短暂眩晕并扩大 AOE 范围。",
+    "levels": [
+      {
+        "level": 1,
+        "baseDamage": 115,
+        "attackRange": 2.8,
+        "attackSpeed": 1.3,
+        "cost": 0,
+        "upgradeCost": 0
+      }
+    ],
+    "canTargetFly": true,
+    "isAOE": true,
+    "aoeRadiusPx": 60,
+    "color": "#e53e3e",
+    "passiveId": "destroyer_stun_aoe",
+    "passiveDesc": "每次命中附带 0.3s 眩晕；AOE 半径 +50%（60 px）；对护盾敌人伤害 +25%。"
+  },
+  {
+    "id": 103,
+    "name": "极光塔",
+    "code": "AURORA_EPIC",
+    "element": "light",
+    "rarity": "epic",
+    "special": true,
+    "description": "光环型支援塔，提升 ±2 格内所有友塔的攻速（单塔 +8%，最多叠加 24%）。",
+    "levels": [
+      {
+        "level": 1,
+        "baseDamage": 85,
+        "attackRange": 3.2,
+        "attackSpeed": 1.6,
+        "cost": 0,
+        "upgradeCost": 0
+      }
+    ],
+    "canTargetFly": true,
+    "isAOE": false,
+    "aoeRadiusPx": 0,
+    "color": "#9f7aea",
+    "passiveId": "aurora_atkspd_aura",
+    "passiveDesc": "光环：自身 ±2 格内所有友军塔攻速 +8%（同效果最多叠加 3 层 = +24%）。"
+  },
+  {
+    "id": 104,
+    "name": "宝石主宰",
+    "code": "GEMLORD_LEG",
+    "element": "dark",
+    "rarity": "legendary",
+    "special": true,
+    "description": "传奇级特殊塔：全图友塔伤害光环 + 主动斩杀高血敌人。",
+    "levels": [
+      {
+        "level": 1,
+        "baseDamage": 145,
+        "attackRange": 3.5,
+        "attackSpeed": 1.7,
+        "cost": 0,
+        "upgradeCost": 0
+      }
+    ],
+    "canTargetFly": true,
+    "isAOE": true,
+    "aoeRadiusPx": 65,
+    "color": "#d69e2e",
+    "passiveId": "gemlord_global_damage",
+    "passiveDesc": "光环：全图塔伤害 +5%；主动技能（每 10s 自动触发）对当前血量最高的敌人造成其生命上限 10% 的真实伤害（无视护盾/护甲）。"
+  },
+  {
+    "id": 105,
+    "name": "雷击帝",
+    "code": "RAIGATEKI_LEG",
+    "element": "thunder",
+    "rarity": "legendary",
+    "special": true,
+    "description": "传奇级特殊塔：普通攻击附带链式闪电，最多 3 连跳，衰减 70%。",
+    "levels": [
+      {
+        "level": 1,
+        "baseDamage": 160,
+        "attackRange": 3.0,
+        "attackSpeed": 1.5,
+        "cost": 0,
+        "upgradeCost": 0
+      }
+    ],
+    "canTargetFly": true,
+    "isAOE": false,
+    "aoeRadiusPx": 0,
+    "color": "#f6e05e",
+    "passiveId": "raigateki_chain_lightning",
+    "passiveDesc": "每次攻击附带一道链式雷击：对主目标 ±1 格内最近敌人追加 60% 伤害，最多链 3 次，每次衰减 70%（60%→42%→29.4%）。"
+  }
+]

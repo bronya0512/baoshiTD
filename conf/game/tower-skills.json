@@ -1,0 +1,46 @@
+[
+  {
+    "id": "double_strike",
+    "name": "蓄势一击",
+    "desc": "满能后下一次攻击造成 2× 伤害，AOE/弹射链/double_shot 副弹同倍率",
+    "icon": "💥",
+    "skillType": "damage_mult",
+    "damageMul": 2.0,
+    "armorIgnorePct": 0,
+    "slowMul": 1,
+    "slowTicksSec": 0
+  },
+  {
+    "id": "heavy_strike",
+    "name": "重击",
+    "desc": "满能后下一次攻击造成 1.5× 伤害，AOE 扩散也同倍率",
+    "icon": "🔨",
+    "skillType": "damage_mult",
+    "damageMul": 1.5,
+    "armorIgnorePct": 0,
+    "slowMul": 1,
+    "slowTicksSec": 0
+  },
+  {
+    "id": "armor_pierce",
+    "name": "穿甲爆破",
+    "desc": "满能后下一次攻击：无视目标 100% 护甲 + 30% 额外伤害，专克盾盒兵/BOSS 高甲敌人",
+    "icon": "🛡️",
+    "skillType": "armor_pierce",
+    "damageMul": 1.3,
+    "armorIgnorePct": 1.0,
+    "slowMul": 1,
+    "slowTicksSec": 0
+  },
+  {
+    "id": "frost_explosion",
+    "name": "冰爆术",
+    "desc": "满能后下一次攻击：伤害 ×1.3 + 对主目标施加 50% 减速 2 秒（覆盖冰霜塔自身减速）",
+    "icon": "❄️",
+    "skillType": "damage_mult",
+    "damageMul": 1.3,
+    "armorIgnorePct": 0,
+    "slowMul": 0.5,
+    "slowTicksSec": 2.0
+  }
+]

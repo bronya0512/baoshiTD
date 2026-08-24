@@ -30,6 +30,8 @@ func Setup() *gin.Engine {
 	// 提供 Spine 等静态资产
 	r.Static("/assets", "./assets")
 	r.StaticFile("/", "./web/index.html")
+	// conf/: 前端可直接访问 conf/game/*.js 等配置资源
+	r.Static("/conf", "./conf")
 
 	// ============ API 路由 ============
 	v1 := r.Group("/api")
@@ -57,16 +59,40 @@ func Setup() *gin.Engine {
 		v1.DELETE("/users/:id", handler.DeleteUser)
 
 		// Game config（MVP v2：towers / enemies / gems / maps / maps/:id / waves/:mapId / luck / buffs）
+		// v4 扩展：special-towers / recipes
 		cfg := v1.Group("/config")
 		{
-			cfg.GET("/towers",  handler.ConfigListTowers)
+			cfg.GET("/towers", handler.ConfigListTowers)
 			cfg.GET("/enemies", handler.ConfigListEnemies)
-			cfg.GET("/gems",    handler.ConfigGetGems)
-			cfg.GET("/maps",    handler.ConfigListMaps)
+			cfg.GET("/gems", handler.ConfigGetGems)
+			cfg.GET("/maps", handler.ConfigListMaps)
 			cfg.GET("/maps/:id", handler.ConfigGetMapDetail)
 			cfg.GET("/waves/:mapId", handler.ConfigGetWaves)
-			cfg.GET("/luck",    handler.ConfigGetLuck)
-			cfg.GET("/buffs",   handler.ConfigGetBuffs)
+			cfg.GET("/luck", handler.ConfigGetLuck)
+			cfg.GET("/buffs", handler.ConfigGetBuffs)
+			// ---- v4 ----
+			cfg.GET("/special-towers", handler.ConfigListSpecialTowers)
+			cfg.GET("/recipes", handler.ConfigGetRecipes)
+			// ===== V4-7 能量 / 技能 解耦：独立池 API =====
+			cfg.GET("/energy-cfgs", handler.ConfigGetEnergyCfgs)
+			cfg.GET("/tower-skills", handler.ConfigGetTowerSkills)
+			// ---- 热重载 ----
+			cfg.POST("/reload", handler.ConfigReload)
+		}
+
+		// V4-6 TD（不做 /api/td）：排行榜 + 账号状态 PATCH（JWT 保护）
+		td := v1.Group("/td")
+		{
+			// 公开：排行榜（任何人可读 Top10）
+			td.GET("/leaderboard", handler.LeaderboardList)
+
+			// 登录态：同步天赋 / 地图解锁
+			tdAuth := td.Group("")
+			tdAuth.Use(middleware.AuthRequired())
+			{
+				tdAuth.PATCH("/account/talents", handler.AccountTalentsPatch)
+				tdAuth.PATCH("/account/unlocked", handler.AccountUnlockedMapsPatch)
+			}
 		}
 	}
 

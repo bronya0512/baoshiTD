@@ -1,0 +1,103 @@
+[
+  {
+    "wave": 1,
+    "groups": [
+      { "enemyId": 1, "count": 12, "interval": 0.85, "delay": 0 }
+    ],
+    "reward": { "gold": 70, "gemRolls": 0 },
+    "placementPerWave": 5,
+    "rewardGold": 70
+  },
+  {
+    "wave": 2,
+    "groups": [
+      { "enemyId": 1, "count": 14, "interval": 0.6, "delay": 0 },
+      { "enemyId": 2, "count": 8,  "interval": 0.9, "delay": 3 },
+      { "enemyId": 7, "count": 3,  "interval": 2.0, "delay": 8 }
+    ],
+    "reward": { "gold": 70, "gemRolls": 0 },
+    "placementPerWave": 5,
+    "rewardGold": 70
+  },
+  {
+    "wave": 3,
+    "groups": [
+      { "enemyId": 2, "count": 14, "interval": 0.45, "delay": 0 },
+      { "enemyId": 1, "count": 18, "interval": 0.55, "delay": 2 },
+      { "enemyId": 7, "count": 3,  "interval": 2.5,  "delay": 8 },
+      { "enemyId": 6, "count": 1,  "interval": 0,    "delay": 14 }
+    ],
+    "reward": { "gold": 140, "gemRolls": 0 },
+    "isBossWave": true,
+    "placementPerWave": 5,
+    "rewardGold": 140
+  },
+  {
+    "wave": 4,
+    "groups": [
+      { "enemyId": 3, "count": 8,  "interval": 1.6, "delay": 0 },
+      { "enemyId": 1, "count": 24, "interval": 0.45,"delay": 2 },
+      { "enemyId": 8, "count": 2,  "interval": 0,   "delay": 8 },
+      { "enemyId": 9, "count": 2,  "interval": 0,   "delay": 12 },
+      { "enemyId": 10,"count": 6,  "interval": 0.5, "delay": 14 }
+    ],
+    "reward": { "gold": 70, "gemRolls": 0 },
+    "placementPerWave": 5,
+    "rewardGold": 70
+  },
+  {
+    "wave": 5,
+    "groups": [
+      { "enemyId": 2, "count": 24, "interval": 0.35,"delay": 0 },
+      { "enemyId": 3, "count": 10, "interval": 1.2, "delay": 3 },
+      { "enemyId": 5, "count": 2,  "interval": 3.0, "delay": 9 },
+      { "enemyId": 10,"count": 10, "interval": 0.4, "delay": 11 }
+    ],
+    "reward": { "gold": 70, "gemRolls": 0 },
+    "placementPerWave": 5,
+    "rewardGold": 70
+  },
+  {
+    "wave": 6,
+    "groups": [
+      { "enemyId": 4, "count": 4,  "interval": 2.2, "delay": 0 },
+      { "enemyId": 1, "count": 28, "interval": 0.4, "delay": 1 },
+      { "enemyId": 2, "count": 16, "interval": 0.45,"delay": 6 },
+      { "enemyId": 7, "count": 4,  "interval": 1.8, "delay": 8 },
+      { "enemyId": 11,"count": 1,  "interval": 0,   "delay": 15 }
+    ],
+    "reward": { "gold": 200, "gemRolls": 0 },
+    "isBossWave": true,
+    "placementPerWave": 5,
+    "rewardGold": 200
+  },
+  {
+    "wave": 7,
+    "groups": [
+      { "enemyId": 3, "count": 16, "interval": 0.9, "delay": 0 },
+      { "enemyId": 4, "count": 5,  "interval": 3.2, "delay": 3 },
+      { "enemyId": 8, "count": 2,  "interval": 4.0, "delay": 7 },
+      { "enemyId": 9, "count": 2,  "interval": 5.0, "delay": 11 },
+      { "enemyId": 5, "count": 3,  "interval": 2.8, "delay": 14 }
+    ],
+    "reward": { "gold": 80, "gemRolls": 0 },
+    "placementPerWave": 5,
+    "rewardGold": 80
+  },
+  {
+    "wave": 8,
+    "groups": [
+      { "enemyId": 1, "count": 28, "interval": 0.22,"delay": 0 },
+      { "enemyId": 3, "count": 12, "interval": 0.85,"delay": 2 },
+      { "enemyId": 4, "count": 6,  "interval": 2.0, "delay": 5 },
+      { "enemyId": 10,"count": 14, "interval": 0.35,"delay": 8 },
+      { "enemyId": 7, "count": 5,  "interval": 1.6, "delay": 10 },
+      { "enemyId": 12,"count": 1,  "interval": 0,   "delay": 18 },
+      { "enemyId": 5, "count": 3,  "interval": 2.5, "delay": 25 }
+    ],
+    "reward": { "gold": 400, "gemRolls": 0 },
+    "isBossWave": true,
+    "placementPerWave": 5,
+    "rewardGold": 400
+  }
+]

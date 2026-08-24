@@ -1,0 +1,75 @@
+[
+  {
+    "id": "C-FUSION",
+    "name": "元素融合",
+    "rarity": "epic",
+    "outputTowerId": 101,
+    "note": "配方：火 + 冰 + 雷（3 座 common）→ 元素融合塔（epic 固定）",
+    "inputs": [
+      { "slot": 1, "rarityRequired": "common", "elementRequired": "fire",    "allowSpecial": false },
+      { "slot": 2, "rarityRequired": "common", "elementRequired": "ice",     "allowSpecial": false },
+      { "slot": 3, "rarityRequired": "common", "elementRequired": "thunder", "allowSpecial": false }
+    ],
+    "inputSlotsAllDistinctElements": true,
+    "allowSpecialAsInput": false
+  },
+  {
+    "id": "C-DESTROYER",
+    "name": "破坏者",
+    "rarity": "epic",
+    "outputTowerId": 102,
+    "note": "配方：火 + 风(雷) + 暗（3 座 rare）→ 破坏者（epic 固定）",
+    "inputs": [
+      { "slot": 1, "rarityRequired": "rare", "elementRequired": "fire",    "allowSpecial": false },
+      { "slot": 2, "rarityRequired": "rare", "elementRequired": "thunder", "allowSpecial": false },
+      { "slot": 3, "rarityRequired": "rare", "elementRequired": "dark",    "allowSpecial": false }
+    ],
+    "inputSlotsAllDistinctElements": true,
+    "allowSpecialAsInput": false
+  },
+  {
+    "id": "C-AURORA",
+    "name": "极光塔",
+    "rarity": "epic",
+    "outputTowerId": 103,
+    "note": "配方：光 + 冰 + 土(毒)（3 座 rare）→ 极光塔（epic 固定）",
+    "inputs": [
+      { "slot": 1, "rarityRequired": "rare", "elementRequired": "light",  "allowSpecial": false },
+      { "slot": 2, "rarityRequired": "rare", "elementRequired": "ice",    "allowSpecial": false },
+      { "slot": 3, "rarityRequired": "rare", "elementRequired": "poison", "allowSpecial": false }
+    ],
+    "inputSlotsAllDistinctElements": true,
+    "allowSpecialAsInput": false
+  },
+  {
+    "id": "C-GEMLORD",
+    "name": "宝石主宰",
+    "rarity": "legendary",
+    "outputTowerId": 104,
+    "note": "配方：任意 3 座 epic（至少 1 座具有元素属性；当前所有塔均满足）→ 宝石主宰（legendary 固定）。特殊塔可作为材料参与本配方。",
+    "inputs": [
+      { "slot": 1, "rarityRequired": "epic", "elementRequired": null, "allowSpecial": true },
+      { "slot": 2, "rarityRequired": "epic", "elementRequired": null, "allowSpecial": true },
+      { "slot": 3, "rarityRequired": "epic", "elementRequired": null, "allowSpecial": true }
+    ],
+    "inputSlotsAllDistinctElements": false,
+    "atLeastOneHasElement": true,
+    "allowSpecialAsInput": true,
+    "inputsMustBeDifferentTower": true
+  },
+  {
+    "id": "C-RAIGATEKI",
+    "name": "雷击帝",
+    "rarity": "legendary",
+    "outputTowerId": 105,
+    "note": "配方：任意 1 座 legendary（任何类型） + 2 座不同类型 epic → 雷击帝（legendary 固定）。特殊塔可作为材料参与本配方。",
+    "inputs": [
+      { "slot": 1, "rarityRequired": "legendary", "elementRequired": null, "allowSpecial": true },
+      { "slot": 2, "rarityRequired": "epic",      "elementRequired": null, "allowSpecial": true },
+      { "slot": 3, "rarityRequired": "epic",      "elementRequired": null, "allowSpecial": true }
+    ],
+    "inputSlotsAllDistinctElements": false,
+    "twoEpicsMustDifferElement": true,
+    "allowSpecialAsInput": true
+  }
+]

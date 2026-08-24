@@ -43,3 +43,8 @@ logs/
 # Temp
 tmp/
 temp/
+
+# Large binary assets (exceed GitHub 2GB pack limit)
+*.zip
+assets/spine/mrfz/
+assets/spine/waifu2x-caffe  Ps/

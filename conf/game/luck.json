@@ -1,0 +1,85 @@
+{
+  "initialLevel": 1,
+  "levels": [
+    {
+      "level": 1,
+      "upgradeCostGold": null,
+      "towerRarityWeights": {
+        "common": 70,
+        "epic": 4,
+        "legendary": 1,
+        "rare": 25
+      },
+      "bonusRarityWeights": {
+        "common": 70,
+        "epic": 4,
+        "legendary": 1,
+        "rare": 25
+      }
+    },
+    {
+      "level": 2,
+      "upgradeCostGold": 60,
+      "towerRarityWeights": {
+        "common": 55,
+        "epic": 8,
+        "legendary": 2,
+        "rare": 35
+      },
+      "bonusRarityWeights": {
+        "common": 60,
+        "epic": 6,
+        "legendary": 2,
+        "rare": 32
+      }
+    },
+    {
+      "level": 3,
+      "upgradeCostGold": 120,
+      "towerRarityWeights": {
+        "common": 40,
+        "epic": 15,
+        "legendary": 5,
+        "rare": 40
+      },
+      "bonusRarityWeights": {
+        "common": 50,
+        "epic": 10,
+        "legendary": 2,
+        "rare": 38
+      }
+    },
+    {
+      "level": 4,
+      "upgradeCostGold": 240,
+      "towerRarityWeights": {
+        "common": 25,
+        "epic": 28,
+        "legendary": 7,
+        "rare": 40
+      },
+      "bonusRarityWeights": {
+        "common": 40,
+        "epic": 16,
+        "legendary": 4,
+        "rare": 40
+      }
+    },
+    {
+      "level": 5,
+      "upgradeCostGold": 500,
+      "towerRarityWeights": {
+        "common": 15,
+        "epic": 38,
+        "legendary": 12,
+        "rare": 35
+      },
+      "bonusRarityWeights": {
+        "common": 30,
+        "epic": 22,
+        "legendary": 8,
+        "rare": 40
+      }
+    }
+  ]
+}

@@ -1,0 +1,117 @@
+{
+  "rollCostGold": 40,
+  "buffs": [
+    {
+      "id": "atk_1",
+      "name": "攻击+15%",
+      "rarity": "common",
+      "effect": {
+        "towerDamageMulAll": 1.15
+      }
+    },
+    {
+      "id": "atk_2",
+      "name": "攻击+25%",
+      "rarity": "rare",
+      "effect": {
+        "towerDamageMulAll": 1.25
+      }
+    },
+    {
+      "id": "atk_3",
+      "name": "攻击+40%",
+      "rarity": "epic",
+      "effect": {
+        "towerDamageMulAll": 1.4
+      }
+    },
+    {
+      "id": "spd_1",
+      "name": "射速+20%",
+      "rarity": "common",
+      "effect": {
+        "towerAttackIntervalMulAll": 0.83
+      }
+    },
+    {
+      "id": "spd_2",
+      "name": "射速+35%",
+      "rarity": "rare",
+      "effect": {
+        "towerAttackIntervalMulAll": 0.74
+      }
+    },
+    {
+      "id": "rng_1",
+      "name": "射程+15%",
+      "rarity": "common",
+      "effect": {
+        "towerRangeMulAll": 1.15
+      }
+    },
+    {
+      "id": "gold_1",
+      "name": "击杀金币+20%",
+      "rarity": "rare",
+      "effect": {
+        "killGoldMulAll": 1.2
+      }
+    },
+    {
+      "id": "gold_2",
+      "name": "击杀金币+40%",
+      "rarity": "epic",
+      "effect": {
+        "killGoldMulAll": 1.4
+      }
+    },
+    {
+      "id": "slow_1",
+      "name": "减速效果+20%",
+      "rarity": "rare",
+      "effect": {
+        "slowStrengthMulAll": 1.2
+      }
+    },
+    {
+      "id": "lucky_1",
+      "name": "奖励命中+10%",
+      "rarity": "epic",
+      "effect": {
+        "killBonusGoldChanceAddAll": 0.1
+      }
+    }
+  ],
+  "rollRarityWeights": {
+    "1": {
+      "common": 70,
+      "epic": 4,
+      "legendary": 1,
+      "rare": 25
+    },
+    "2": {
+      "common": 60,
+      "epic": 7,
+      "legendary": 1,
+      "rare": 32
+    },
+    "3": {
+      "common": 50,
+      "epic": 13,
+      "legendary": 2,
+      "rare": 35
+    },
+    "4": {
+      "common": 40,
+      "epic": 20,
+      "legendary": 5,
+      "rare": 35
+    },
+    "5": {
+      "common": 30,
+      "epic": 28,
+      "legendary": 7,
+      "rare": 35
+    }
+  }
+}

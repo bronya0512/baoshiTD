@@ -15,6 +15,10 @@ type Account struct {
 	CreatedAt        time.Time `json:"created_at"`
 	ActiveSessionJti string    `json:"-"` // 单点登录：当前唯一有效JWT的jti（新登录会覆盖，旧token立刻失效）
 	ActiveSessionAt  time.Time `json:"-"` // 该jti发放时间（调试用）
+	// V4-1: 跨局持久化（V4-2/V4-7 用；DB 中 users 表列 JSON/INT 存储；若从未写入则 nil / 0）
+	UnlockedMaps          []string `json:"unlockedMaps,omitempty"` // e.g. ["map-1","map-2"] 或 map id 字符串集
+	TalentNodes           []string `json:"talentNodes,omitempty"`  // 已点亮天赋节点 id 列表
+	TalentPointsAvailable int      `json:"talentPointsAvailable"`  // 可用天赋点数
 }
 
 // RegisterRequest 注册请求
@@ -37,11 +41,13 @@ type TokenResponse struct {
 	Expires  int64  `json:"exp"`   // Unix秒
 }
 
-// GameSaveRecord 游戏存档（按 uid 唯一 => MVP 每个账号 1 个当前存档 + 1 个 autosave 也合成这一个，version递增）
-// 后续 SQLite save表：uid PK FK, phase luckLevel gold baseHP waveIndex TEXT(tiles JSON) TEXT(grid JSON) TEXT(buffs JSON) isAuto updatedAt
+// GameSaveRecord 游戏存档（V4-1 升级：复合 PK (uid, mapId, difficulty)，每个"难度×地图"桶各一份独立存档）
+// 老 V3 存档（只有 uid PK）：读档时自动补默认 mapId=1 / difficulty="normal"（AC-20 兼容）
 type GameSaveRecord struct {
-	Version        int         `json:"version"` // 存档格式版本 (1)
-	Phase          string      `json:"phase"`   // MENU / PREPARE / RESERVE / BATTLE / WAVEEND / WIN / LOSE
+	Version        int         `json:"version"`    // 存档格式版本 (2 = V4-1；老 V3=1 加载兼容)
+	MapId          int         `json:"mapId"`      // V4-1：地图 ID（默认 1=草原）
+	Difficulty     string      `json:"difficulty"` // V4-1：难度 ("normal"|"hard"|"nightmare")
+	Phase          string      `json:"phase"`      // MENU / PREPARE / RESERVE / BATTLE / WAVEEND / WIN / LOSE
 	LuckLevel      int         `json:"luckLevel"`
 	Gold           int         `json:"gold"`
 	BaseHP         int         `json:"baseHP"`
@@ -59,9 +65,10 @@ type GameSaveRecord struct {
 
 // MarshalJSON 修复 []uint8(Tiles) 默认base64编码 → int数组，与MapDetail.Tiles保持一致
 func (r GameSaveRecord) MarshalJSON() ([]byte, error) {
-	// 先把 Tiles 换成 []int
 	type aliasT struct {
 		Version        int         `json:"version"`
+		MapId          int         `json:"mapId"`
+		Difficulty     string      `json:"difficulty"`
 		Phase          string      `json:"phase"`
 		LuckLevel      int         `json:"luckLevel"`
 		Gold           int         `json:"gold"`
@@ -79,6 +86,8 @@ func (r GameSaveRecord) MarshalJSON() ([]byte, error) {
 	}
 	a := aliasT{
 		Version:        r.Version,
+		MapId:          r.MapId,
+		Difficulty:     r.Difficulty,
 		Phase:          r.Phase,
 		LuckLevel:      r.LuckLevel,
 		Gold:           r.Gold,
@@ -100,7 +109,7 @@ func (r GameSaveRecord) MarshalJSON() ([]byte, error) {
 		}
 		a.Tiles = ints
 	} else {
-		a.Tiles = r.Tiles // nil 保持 omit
+		a.Tiles = r.Tiles
 	}
 	// 用 alias 序列化避免递归 MarshalJSON
 	var buf bytes.Buffer

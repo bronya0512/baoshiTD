@@ -2,51 +2,131 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover, shrink-to-fit=no" />
+  <meta name="format-detection" content="telephone=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>宝石TD v2</title>
   <link rel="stylesheet" href="/web/css/td.css" />
 </head>
 <body>
   <div id="app" class="app-v2">
-    <!-- ================= HUD ================= -->
-    <header id="hud" class="hud">
-      <div class="hud-row-1">
-        <div class="hud-title">宝石TD v2</div>
-        <div class="hud-stats">
-          <div class="stat"><span class="label">金币</span><span id="stat-gold" class="value gold">0</span></div>
-          <div class="stat"><span class="label">生命</span><span id="stat-hp" class="value hp">0 / 0</span></div>
-          <div class="stat"><span class="label">波次</span><span id="stat-wave" class="value">0 / 0</span></div>
-          <div class="stat"><span class="label">运气</span><span id="stat-luck" class="value luck">1</span></div>
-          <div class="stat"><span class="label">真塔</span><span id="stat-towers" class="value">0</span></div>
-          <div class="stat"><span class="label">墙</span><span id="stat-walls" class="value">0</span></div>
-          <div class="stat"><span class="label">来源</span><span id="stat-source" class="value source">-</span></div>
+    <!-- ================= GAME MAIN (stage + overlay HUD) ================= -->
+    <div id="game-body" class="game-body">
+      <main id="game-main" class="game-main">
+        <canvas id="stage" width="480" height="288"></canvas>
+
+        <!-- ===== Overlay HUD: 左上角 金币/生命/运气 ===== -->
+        <div id="hud-top" class="hud-overlay hud-top-left">
+          <div class="h-chip h-gold" title="金币"><span class="h-icon">🪙</span><span id="stat-gold" class="h-val">0</span></div>
+          <div class="h-chip h-hp"   title="生命"><span class="h-icon">❤</span><span id="stat-hp" class="h-val">0 / 0</span></div>
+          <div class="h-chip h-luck" title="运气等级"><span class="h-icon">🍀</span>Lv.<span id="stat-luck" class="h-val">1</span></div>
         </div>
-        <div class="hud-actions">
-          <button id="btn-start"   class="btn primary">开始下一波</button>
-          <button id="btn-restart" class="btn">重开</button>
-          <button id="btn-save"    class="btn"      title="手动保存（战斗中不可）">💾 保存</button>
-          <button id="btn-load"    class="btn"      title="读取最近一次存档">📂 读档</button>
+
+        <!-- ===== Overlay HUD: 右上角 波次 + 菜单按钮 ===== -->
+        <div id="hud-top-right" class="hud-overlay hud-top-right">
+          <div class="h-chip h-wave" title="当前波次 / 总波次"><span class="h-icon">🌊</span><span id="stat-wave" class="h-val">0 / 0</span></div>
+          <button id="btn-menu" class="h-menu-btn" type="button" title="游戏菜单（升级 / 合成 / 进化 / 天赋 / 排行榜 / 存档 等）" aria-haspopup="true" aria-expanded="false">☰ 菜单</button>
+        </div>
+
+        <!-- ===== Overlay: 中间"开始本波"按钮，PREPARE 阶段玩家可放置 → 点击后从 PREPARE→RESERVE 或 BATTLE ===== -->
+        <button id="btn-start-wave" type="button" class="center-start hidden">▶ 开始第 <span id="center-wave-num">1</span> 波</button>
+
+        <!-- ===== Overlay: phase / msg / merge-status (bottom-center) 小条，避免占画面 ===== -->
+        <div id="mini-bar" class="hud-overlay hud-bottom-center hidden">
+          <span id="phase-name" class="phase-chip">MENU</span>
+          <span id="phase-extra"></span>
+          <span id="merge-status" class="merge-status hidden"></span>
+        </div>
+
+        <!-- ===== Overlay: 进化配方提示条 (top of canvas) 保留但 z-index + 窄样式 ===== -->
+        <div id="evolve-ribbon" class="evolve-ribbon hidden">
+          <div id="evolve-tabs" class="evolve-tabs" role="tablist" aria-label="进化配方"></div>
+          <div id="evolve-need" class="evolve-need"></div>
+          <div id="evolve-close" class="evolve-close" title="关闭配方条">✕</div>
+        </div>
+      </main>
+    </div>
+
+    <!-- ================= 菜单遮罩 + 抽屉（把所有"其他东西"都塞进来） ================= -->
+    <div id="menu-mask" class="menu-mask hidden" role="presentation"></div>
+    <aside id="side-menu" class="side-menu" aria-hidden="true">
+      <div class="sm-header">
+        <div class="sm-title">游戏菜单</div>
+        <button id="btn-menu-close" class="sm-close" type="button" aria-label="关闭菜单">✕</button>
+      </div>
+
+      <!-- 难度/地图 选择（仅 MENU 阶段显示） -->
+      <section class="sm-section">
+        <div class="sm-sec-title">对局设置</div>
+        <div id="menu-chooser" class="menu-chooser-compact">
+          <div class="sm-row"><span class="sm-row-label">难度</span>
+            <div id="difficulty-choices" class="chooser-tabs" role="tablist" aria-label="难度">
+              <button type="button" class="ctab diff-tab normal active"   data-difficulty="normal"   title="普通 · 标准数值">普通</button>
+              <button type="button" class="ctab diff-tab hard"            data-difficulty="hard"     title="困难 · 1.8×HP 1.15×速 1.3×金 基地15HP">困难</button>
+              <button type="button" class="ctab diff-tab nightmare"       data-difficulty="nightmare" title="噩梦 · 3.0×HP 1.35×速 1.6×金 基地10HP">噩梦</button>
+            </div>
+          </div>
+          <div class="sm-row"><span class="sm-row-label">地图</span>
+            <div id="map-choices" class="chooser-tabs" role="tablist" aria-label="地图">
+              <button type="button" class="ctab map-tab grass active" data-map="1" title="草原 · 默认 10×6 S 形三检测点">🌿 草原</button>
+              <button type="button" class="ctab map-tab lava  disabled" data-map="2" title="熔岩 · V4-2 解锁（通关草原解锁）">🌋 熔岩<span class="locked">未解锁</span></button>
+              <button type="button" class="ctab map-tab ice   disabled" data-map="3" title="冰霜 · V4-2 解锁（通关熔岩解锁）">❄ 冰霜<span class="locked">未解锁</span></button>
+            </div>
+          </div>
+          <!-- 地图/难度 文本 chip 摘要（进入战斗后显示生效值） -->
+          <div class="sm-readouts">
+            <div class="sm-readout"><span class="label">当前难度</span><span id="stat-difficulty" class="value dif">普通</span></div>
+            <div class="sm-readout"><span class="label">当前地图</span><span id="stat-map" class="value mp">🌿 草原 (#1)</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 合成 / 升级 / 进化 -->
+      <section class="sm-section">
+        <div class="sm-sec-title">塔合成</div>
+        <div class="sm-merge-row">
+          <button id="btn-upgrade" class="btn merge" data-merge="upgrade" title="A类：2 同塔同稀有度 → 升级稀有度（类型不变）">⬆ 升级</button>
+          <button id="btn-merge" class="btn merge"   data-merge="fusion"  title="B类：3 不同塔同稀有度 → 合成高一级随机塔">🧪 合成</button>
+          <button id="btn-evolve" class="btn merge evolve" data-merge="evolve" title="C类：按配方进化出特殊塔（稀有度固定）">💠 进化</button>
+        </div>
+        <div id="merge-status-menu" class="merge-status small hidden"></div>
+      </section>
+
+      <!-- 天赋 / 排行榜 / 账号 / 存档 / 重开 -->
+      <section class="sm-section">
+        <div class="sm-sec-title">账号 / 系统</div>
+        <div class="sm-btn-grid">
+          <button id="btn-talents" class="btn talent" title="天赋树">🎯 天赋<span id="talent-chip" class="chip-sub">5</span></button>
+          <button id="btn-leaderboard" class="btn gold" title="排行榜">🎖 排行榜</button>
           <button id="btn-account" class="btn ghost" title="登录 / 注册">
             <span id="account-chip" class="account-chip">👤 未登录</span>
           </button>
+          <button id="btn-save" class="btn" title="手动保存">💾 保存</button>
+          <button id="btn-load" class="btn" title="读取最近一次存档">📂 读档</button>
+          <button id="btn-restart" class="btn warn">🔄 重开</button>
         </div>
-      </div>
-      <div class="hud-row-2">
-        <div id="phase-bar" class="phase-bar">
-          <span id="phase-name" class="phase-name">MENU</span>
-          <span id="phase-extra" class="phase-extra"></span>
-        </div>
-        <div id="msg" class="msg"></div>
-      </div>
-    </header>
+      </section>
 
-    <!-- ================= MAIN ================= -->
-    <div id="game-body" class="game-body">
-      <!-- ================= LEFT: Buff panel ================= -->
-      <aside id="left-panel" class="side-panel">
-        <div class="panel-title">全局 Buffs</div>
+      <!-- Buffs / 日志 / 统计（左右面板原内容塞进来，抽屉里滚动） -->
+      <section class="sm-section">
+        <div class="sm-sec-title">全局 Buffs</div>
         <div id="buffs-list" class="buffs-list"><div class="empty">（暂无。波末可用金币抽取）</div></div>
-        <div class="panel-title mt">操作说明</div>
+      </section>
+
+      <section class="sm-section">
+        <div class="sm-sec-title">对局信息</div>
+        <div class="sm-readouts cols-2">
+          <div class="sm-readout"><span class="label">真塔</span><span id="stat-towers" class="value">0</span></div>
+          <div class="sm-readout"><span class="label">墙</span><span id="stat-walls"  class="value">0</span></div>
+          <div class="sm-readout"><span class="label">总DPS</span><span id="stat-dps"   class="value dps">0</span></div>
+          <div class="sm-readout"><span class="label">总击杀</span><span id="stat-kills" class="value kills">0</span></div>
+          <div class="sm-readout sm-r-2"><span class="label">来源</span><span id="stat-source" class="value source">-</span></div>
+        </div>
+      </section>
+
+      <section class="sm-section sm-section-last">
+        <div class="sm-sec-title">操作说明</div>
         <ul class="tips">
           <li>每波 <b>5 次</b>放置，点击空地→随机 Roll 塔</li>
           <li>放置完成选择 <b>保留 1 座</b>，其余变墙</li>
@@ -55,18 +135,42 @@
           <li>波末可用金币升级运气 / 抽 Buff</li>
           <li>点击墙(褐)可拆除；点击塔查看属性</li>
         </ul>
-      </aside>
-
-      <!-- ================= GAME CANVAS ================= -->
-      <main id="game-main" class="game-main">
-        <canvas id="stage" width="864" height="576"></canvas>
-      </main>
-
-      <!-- ================= RIGHT: log panel ================= -->
-      <aside id="right-panel" class="side-panel">
-        <div class="panel-title">消息日志</div>
+        <div class="sm-sec-title mt">消息日志</div>
         <div id="log-list" class="log-list"></div>
-      </aside>
+      </section>
+    </aside>
+
+    <!-- 顶栏保留：原来的 #hud 直接隐藏，JS 里老 ID 还在抽屉里所以不用删节点，保留避免报错 -->
+    <header id="hud" class="hud h-hidden">
+      <div class="hud-row-1"><div class="hud-title">宝石TD <span class="vtag">v4</span></div>
+        <!-- 兼容老代码：保留一个隐藏的 btn-start 让 getElementById 不会空（功能改由 center-start 按钮触发） -->
+        <button id="btn-start" class="btn primary hidden" aria-hidden="true">开始下一波</button>
+      </div>
+    </header>
+
+    <!-- ================= V4 合成/升级/进化 通用预览模态 ================= -->
+    <div id="merge-modal" class="modal hidden" role="dialog" aria-modal="true">
+      <div class="modal-body merge-modal">
+        <div id="merge-title" class="modal-title">合成确认</div>
+        <div id="merge-sub"   class="modal-sub"></div>
+        <div class="merge-columns">
+          <div class="merge-col inputs">
+            <div class="merge-col-title">素材塔</div>
+            <div id="merge-inputs" class="merge-inputs"></div>
+          </div>
+          <div class="merge-col arrow">➜</div>
+          <div class="merge-col output">
+            <div class="merge-col-title">合成结果</div>
+            <div id="merge-output" class="merge-output"></div>
+            <div id="merge-output-desc" class="merge-output-desc small"></div>
+          </div>
+        </div>
+        <div id="merge-warning" class="merge-warning hidden"></div>
+        <div class="modal-actions">
+          <button id="btn-merge-cancel" class="btn ghost">取消</button>
+          <button id="btn-merge-confirm" class="btn primary">确认合成</button>
+        </div>
+      </div>
     </div>
 
     <!-- ================= RESERVE MODAL ================= -->
@@ -81,24 +185,52 @@
       </div>
     </div>
 
-    <!-- ================= WAVE-END PANEL ================= -->
+    <!-- ================= WAVE-END PANEL (V4-6 T12 Tab 4 类商品) ================= -->
     <div id="waveend-modal" class="modal hidden">
       <div class="modal-body wide">
         <div class="modal-title">波次结算</div>
         <div id="waveend-summary" class="waveend-summary"></div>
-        <div class="we-grid">
-          <div>
-            <div class="panel-title">运气升级</div>
-            <div id="luck-panel" class="luck-panel"></div>
+        <div id="waveend-dps-board" class="dpsboard"></div>
+
+        <!-- ============ 4 Tab header ============ -->
+        <div class="we-tab-bar">
+          <button class="we-tab active" data-we-tab="buff">🎁 抽 Buff&nbsp;<span class="we-tab-sub" id="we-tab-buff-sub">5/5</span></button>
+          <button class="we-tab"        data-we-tab="luck">🍀 升运气</button>
+          <button class="we-tab"        data-we-tab="shop">🏪 购买塔</button>
+          <button class="we-tab"        data-we-tab="preview">👁 预览下波</button>
+        </div>
+
+        <!-- ========== Panel 1: Buff ========== -->
+        <div class="we-tab-panel" data-we-panel="buff">
+          <div class="panel-title">抽取 Buff（每次 <span id="buff-roll-cost">40</span> 金币，剩余 <span id="buff-roll-left">5</span>/<span id="buff-roll-max">5</span> 次）</div>
+          <div class="buff-roll-actions">
+            <button id="btn-roll-buff" class="btn primary">抽取一个 Buff</button>
           </div>
-          <div>
-            <div class="panel-title">抽取 Buff（每次 <span id="buff-roll-cost">40</span> 金币）</div>
-            <div class="buff-roll-actions">
-              <button id="btn-roll-buff" class="btn primary">抽取一个 Buff</button>
-            </div>
-            <div id="buff-roll-result" class="buff-roll-result"></div>
+          <div id="buff-roll-result" class="buff-roll-result"></div>
+          <div id="buff-list-active" class="buff-list"></div>
+        </div>
+
+        <!-- ========== Panel 2: 运气升级 ========== -->
+        <div class="we-tab-panel hidden" data-we-panel="luck">
+          <div class="panel-title">运气升级（影响 Roll 塔/Buff 的稀有度）</div>
+          <div id="luck-panel" class="luck-panel"></div>
+        </div>
+
+        <!-- ========== Panel 3: 购买塔（商店塔） ========== -->
+        <div class="we-tab-panel hidden" data-we-panel="shop">
+          <div class="panel-title">购买塔（<span id="shop-tower-cost">120</span> 金币 Roll 一座随机塔，直接放置到空地）</div>
+          <div style="display:flex; align-items:center; gap:10px; margin:8px 0 6px;">
+            <button id="btn-shop-tower" class="btn primary">🏪 Roll 随机塔并放置</button>
+            <div id="shop-tower-status" class="hint small" style="color:#94a3b8;">点击按钮后进入放置模式，点击画布上的空地即可落塔。</div>
           </div>
         </div>
+
+        <!-- ========== Panel 4: 预览下一波 ========== -->
+        <div class="we-tab-panel hidden" data-we-panel="preview">
+          <div class="panel-title">下一波（波 <span id="preview-wave-no">?</span>）</div>
+          <div id="preview-table-host"></div>
+        </div>
+
         <div class="modal-actions">
           <button id="btn-next-wave" class="btn primary">进入下一波</button>
         </div>
@@ -110,8 +242,118 @@
       <div class="modal-body">
         <div id="end-title" class="modal-title huge">GAME OVER</div>
         <div id="end-summary" class="waveend-summary"></div>
+        <div id="end-dps-board" class="dpsboard"></div>
+        <div id="end-autosave-line" class="hint small" style="margin:6px 0 12px; color:#cbd5e1;"></div>
         <div class="modal-actions">
+          <button id="btn-end-restore" class="btn warn hidden">从 autosave(波末) 恢复</button>
           <button id="btn-end-restart" class="btn primary">再玩一次</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= TOWER INFO MODAL (V3-4 策略切换 + V4-5 塔升级) ================= -->
+    <div id="tower-info-modal" class="modal hidden" role="dialog" aria-modal="true">
+      <div class="modal-body">
+        <div id="ti-title" class="modal-title">防御塔信息</div>
+        <!-- V4-5 L3 特殊效果展示块（L0~L2 隐藏） -->
+        <div id="ti-effect-block" class="ti-effect-block hidden" style="margin:6px 0 10px; padding:8px 10px; border-radius:8px; background:linear-gradient(135deg,#422006,#111827); border:1px solid #ca8a04;">
+          <div class="chip" style="display:inline-block; padding:1px 6px; background:#ca8a04; color:#111; border-radius:999px; font-weight:700; font-size:11px; margin-right:6px;">★ L3 特殊效果</div>
+          <span id="ti-effect-desc" style="font-size:13px; color:#fde68a;"></span>
+        </div>
+        <div id="ti-stats" class="ti-stats" style="margin:8px 0 14px; padding:10px 12px; background:#0f172a; border-radius:8px;"></div>
+        <div class="modal-sub">攻击目标策略（仅影响本塔）</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:10px 0 6px;">
+          <button data-strategy="near" class="btn ti-strat">最近敌人（默认）</button>
+          <button data-strategy="far"  class="btn ti-strat">最远距离（进度最快）</button>
+          <button data-strategy="high" class="btn ti-strat">血量最多</button>
+          <button data-strategy="low"  class="btn ti-strat">血量最少（补刀）</button>
+        </div>
+        <!-- V4-5：升级按钮（底部与关闭并列） -->
+        <div class="modal-actions two-col" style="margin-top:14px;">
+          <button id="ti-upgrade" class="btn gold">升到 L1 (40 金)</button>
+          <button id="ti-close" class="btn primary">关闭</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= TALENT TREE MODAL (V4-6 T13) ================= -->
+    <div id="talent-modal" class="modal hidden" role="dialog" aria-modal="true">
+      <div class="modal-body talent-body" style="max-width:760px;">
+        <div class="modal-title">🎯 天赋树
+          <span id="talent-points-big" class="tp-big" style="margin-left:16px; font-size:15px; color:#fbbf24;">剩余点数：5</span>
+          <span id="talent-save-tip" style="float:right; font-size:12px; color:#94a3b8; font-weight:400;">游客模式保存到浏览器，登录用户同步到账号</span>
+        </div>
+        <div id="talent-summary" style="margin:4px 0 12px; padding:8px 12px; background:#0b1220; border-radius:8px; border:1px solid #1e293b; font-size:13px; color:#94a3b8;">
+          <span id="talent-activated-count">已激活 0 / 12 个天赋</span>
+          <span style="margin-left:16px;" id="talent-activated-brief">效果概览：无</span>
+        </div>
+        <div id="talent-grid-host" class="talent-grid-host"></div>
+        <div class="modal-actions" style="justify-content:space-between; margin-top:14px;">
+          <button id="talent-reset" class="btn ghost" title="清空所有已激活天赋（天赋点不会返还，避免刷点）">🗑 清空天赋（不返还点数）</button>
+          <button id="talent-close" class="btn primary">关闭</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= LEADERBOARD MODAL (V4-6 T14) ================= -->
+    <div id="leaderboard-modal" class="modal hidden" role="dialog" aria-modal="true">
+      <div class="modal-body leaderboard-body" style="max-width:820px;">
+        <div class="modal-title">🎖 排行榜
+          <span style="float:right; font-size:12px; color:#94a3b8; font-weight:400;" id="lb-query-tip">—</span>
+        </div>
+        <div style="display:flex; gap:12px; flex-wrap:wrap; margin:6px 0 10px;">
+          <span class="mc-label">地图</span>
+          <div id="lb-map-tabs" class="chooser-tabs" role="tablist">
+            <button class="ctab lb-map active" data-map="1">🌿 草原</button>
+            <button class="ctab lb-map"        data-map="2">🌋 熔岩</button>
+            <button class="ctab lb-map"        data-map="3">❄ 冰霜</button>
+          </div>
+          <span class="mc-label" style="margin-left:8px;">难度</span>
+          <div id="lb-diff-tabs" class="chooser-tabs" role="tablist">
+            <button class="ctab lb-diff active" data-diff="normal">普通</button>
+            <button class="ctab lb-diff"        data-diff="hard">困难</button>
+            <button class="ctab lb-diff"        data-diff="nightmare">噩梦</button>
+          </div>
+          <button id="lb-refresh" class="btn" style="margin-left:auto;">🔄 刷新</button>
+        </div>
+        <div id="lb-host" style="background:#0b1220; border-radius:8px; border:1px solid #1e293b; padding:6px 8px; min-height:320px;">
+          <div class="empty" id="lb-empty" style="padding:24px 8px; color:#64748b; text-align:center;">
+            （暂无排行 — 地图×难度下还没有玩家存档。登录后每次保存都会计入排行榜！）
+          </div>
+          <table id="lb-table" class="preview-tb" style="width:100%; border-collapse:collapse; display:none;">
+            <thead>
+              <tr>
+                <th style="width:56px;">排名</th>
+                <th style="text-align:left;">玩家</th>
+                <th style="width:80px;">波次</th>
+                <th style="width:80px;">金币</th>
+                <th style="width:80px;">基地HP</th>
+                <th style="width:72px;">运气</th>
+                <th style="width:150px;">最近更新</th>
+              </tr>
+            </thead>
+            <tbody id="lb-tbody"></tbody>
+          </table>
+        </div>
+        <div class="modal-actions" style="justify-content:flex-end; margin-top:14px;">
+          <button id="lb-close" class="btn primary">关闭</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= V4-5 L2→L3 特殊效果 ROLL 动画 MODAL ================= -->
+    <div id="l3-roll-modal" class="modal hidden" role="dialog" aria-modal="true">
+      <div class="modal-body" style="max-width:420px;">
+        <div class="modal-title" style="text-align:center;">⭐ 升级至 L3 · 随机特殊效果 ⭐</div>
+        <div id="l3-roll-stage" class="l3-roll-stage">
+          <div id="l3-roll-icon" class="l3-roll-icon spinning">🎯</div>
+          <div id="l3-roll-name" class="l3-roll-name">抽取中…</div>
+          <div id="l3-roll-desc" class="l3-roll-desc">5 种特效等概率随机（20% / 种）</div>
+        </div>
+        <!-- 拆塔 L3 effect 提醒：在 demolish 流程复用时显示（或 upgrade 结束确认） -->
+        <div id="l3-roll-warn" class="hidden" style="margin:8px 0; padding:8px 10px; background:#78350f; color:#fde68a; border-radius:8px; font-size:13px; text-align:center;">⚠ 含特殊效果，拆塔不返还。</div>
+        <div class="modal-actions" style="justify-content:center;">
+          <button id="l3-roll-ok" class="btn gold hidden">确定</button>
         </div>
       </div>
     </div>
@@ -145,8 +387,9 @@
     <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
   </div>
 
-  <script src="/web/js/td-config-fallback.js"></script>
+  <script src="/conf/game/td-config-fallback.js"></script>
   <script src="/web/js/td-config-loader.js"></script>
+  <script src="/web/js/td-animation.js"></script>
   <script src="/web/js/td-game.js"></script>
   <script>
     window.addEventListener('DOMContentLoaded', function () {

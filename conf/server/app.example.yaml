@@ -1,0 +1,97 @@
+# =========================================================================
+# baoshiTD 服务端运行时配置模板
+# -------------------------------------------------------------------------
+# 使用步骤：
+#   1. 复制本文件为 app.yaml  （放在同目录 conf/server/ 下）
+#   2. 按需修改下面的字段；部署时通过环境变量 BAOSHITD_CONF_SERVER
+#      指定 conf/server 目录，或在启动时传入 --config=conf/server/app.yaml
+#
+# 注意：当前 v4 版本代码还没有读取本 YAML 文件，这里作为「配置规整」
+# 工作的占位模板，后续迭代会把 main.go / db / router 里的硬编码参数
+# （监听地址、CORS 域名、JWT 过期、日志级别、Redis 前缀等）迁移到
+# 这里，并在 main.go 启动时通过 viper / cleanenv 等库加载。
+# =========================================================================
+
+server:
+  # HTTP 监听地址，如 ":8080" = 所有网卡 8080；生产部署改为 "127.0.0.1:8080"
+  listen: ":8080"
+  # GIN 运行模式：debug / release / test
+  gin_mode: "release"
+  # 优雅关闭超时（秒）
+  shutdown_timeout_sec: 15
+
+cors:
+  # 允许跨域的前端域名列表，* 代表全部允许（仅用于开发环境）
+  allowed_origins:
+    - "http://localhost:8080"
+    - "http://127.0.0.1:8080"
+  allowed_methods:
+    - "GET"
+    - "POST"
+    - "PUT"
+    - "DELETE"
+    - "OPTIONS"
+  allowed_headers:
+    - "Origin"
+    - "Content-Type"
+    - "Accept"
+    - "Authorization"
+  # 是否允许携带 cookie / Authorization
+  allow_credentials: true
+  # 预检请求缓存（秒）
+  max_age: 86400
+
+jwt:
+  # 强烈建议：生产环境改成任意 32 字节以上随机串（openssl rand -hex 32）
+  secret: "CHANGE_ME__please_use_a_long_random_string_here"
+  # Access Token 有效期（分钟）
+  access_expire_min: 1440     # 24h
+  # Refresh Token 有效期（天）
+  refresh_expire_days: 7
+  # issuer 字段
+  issuer: "baoshiTD"
+
+database:
+  mysql:
+    # 默认值：127.0.0.1:3306/baoshitd，用户 root，密码从环境变量或注册表 HKCU 读取
+    dsn: "root:138134@tcp(127.0.0.1:3306)/baoshitd?charset=utf8mb4&collation=utf8mb4_unicode_ci&parseTime=True&loc=UTC&tls=skip-verify&maxAllowedPacket=67108864&multiStatements=true"
+    max_open_conns: 32
+    max_idle_conns: 8
+    conn_max_lifetime_sec: 1800
+    conn_max_idle_sec: 600
+  redis:
+    address: "127.0.0.1:6379"
+    password: "baoshiTD"
+    db: 0
+    # 所有 Redis key 都会加此前缀，避免多项目共用 Redis 时冲突
+    key_prefix: "baoshitd:"
+    pool_size: 20
+
+logging:
+  # Level: debug / info / warn / error
+  level: "info"
+  # 日志目录（相对/绝对路径皆可）。空字符串表示不写文件，仅 stdout。
+  dir: "logs"
+  # 文件前缀；最终每日文件名 = <prefix>-YYYY-MM-DD.log
+  file_prefix: "server"
+  # 历史日志自动保留天数（0 = 不清理；推荐 7~30）
+  retain_days: 7
+  # 是否同时输出到 stdout
+  stdout: true
+
+game:
+  # 游戏静态 JSON 目录（对应 internal/config loader.go 的 BaseDir）
+  # 相对路径会被视为相对工作目录。
+  config_dir: "conf/game"
+  # 每波默认建塔次数上限（前端也有独立配置，这里仅服务端校验/兜底）
+  default_placement_per_wave: 5
+
+security:
+  # 注册/登录请求频率限制（次/分钟 / IP）
+  auth_rate_limit_per_min: 30
+  # 失败锁定阈值（失败次数）
+  auth_lockout_threshold: 10
+  # 锁定时长（分钟）
+  auth_lockout_minutes: 15
+  # 是否强制 BCrypt 成本（默认 12）
+  bcrypt_cost: 12

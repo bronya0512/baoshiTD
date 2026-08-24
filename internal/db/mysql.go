@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -27,7 +26,7 @@ type MySQLHolder struct {
 // ConnectMySQL 读取 TD_MYSQL_DSN 并连接、Ping、建表。
 // 返回 (nil, nil) 表示用户没有配置 MySQL DSN（要求走内存模式）。
 func ConnectMySQL() (*MySQLHolder, error) {
-	dsn := os.Getenv("TD_MYSQL_DSN")
+	dsn := getEnv("TD_MYSQL_DSN")
 	if dsn == "" {
 		return nil, nil
 	}
@@ -71,7 +70,7 @@ func redactPass(dsn string) string {
 	return dsn
 }
 
-// ensureSchema 建 users + save_records 表（幂等 IF NOT EXISTS）
+// ensureSchema 建 users + save_records 表（幂等 IF NOT EXISTS）+ 旧表 ALTER 迁移
 func (h *MySQLHolder) ensureSchema(ctx context.Context) error {
 	if h == nil || h.DB == nil {
 		return errors.New("mysql holder not initialized")
@@ -79,22 +78,26 @@ func (h *MySQLHolder) ensureSchema(ctx context.Context) error {
 	// users 表 — 字段对齐 model.Account
 	usersSchema := `
 CREATE TABLE IF NOT EXISTS users (
-  id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '账号ID',
-  username            VARCHAR(64)  NOT NULL COMMENT '用户名（小写唯一）',
-  password_hash       VARCHAR(255) NOT NULL COMMENT 'bcrypt hash',
-  created_at          DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间 UTC',
-  active_session_jti  VARCHAR(64)  NOT NULL DEFAULT '' COMMENT 'SSO 单点登录互斥：当前唯一有效JWT的jti；空=兼容旧会话',
-  active_session_at   DATETIME(3)  NULL DEFAULT NULL COMMENT '该jti发放时间 UTC',
+  id                       BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '账号ID',
+  username                 VARCHAR(64)  NOT NULL COMMENT '用户名（小写唯一）',
+  password_hash            VARCHAR(255) NOT NULL COMMENT 'bcrypt hash',
+  created_at               DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间 UTC',
+  active_session_jti       VARCHAR(64)  NOT NULL DEFAULT '' COMMENT 'SSO 单点登录互斥：当前唯一有效JWT的jti；空=兼容旧会话',
+  active_session_at        DATETIME(3)  NULL DEFAULT NULL COMMENT '该jti发放时间 UTC',
+  unlocked_maps            JSON         NULL COMMENT 'V4-1: 已解锁的地图id数组，如["map-1","map-2"]',
+  talent_nodes             JSON         NULL COMMENT 'V4-1: 已点亮天赋节点id列表',
+  talent_points_available  INT          NOT NULL DEFAULT 0 COMMENT 'V4-1: 可用天赋点数',
   PRIMARY KEY (id),
   UNIQUE KEY uk_users_username (username)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='宝石TD 玩家账号'`
 
-	// save_records 表 — 每账号最多 1 条（uid PK），对齐 model.GameSaveRecord
-	// tiles/grid/activeBuffs 用 JSON 存（MySQL 8.0 原生 JSON 类型，方便查询，不解析也不影响性能）
+	// save_records 表 — 每 (uid, map_id, difficulty) 1 条存档
 	saveSchema := `
 CREATE TABLE IF NOT EXISTS save_records (
-  uid              BIGINT UNSIGNED NOT NULL COMMENT '对应 users.id；每账号 1 条',
-  version          INT          NOT NULL DEFAULT 1 COMMENT '存档格式版本',
+  uid              BIGINT UNSIGNED NOT NULL COMMENT '对应 users.id',
+  map_id           INT          NOT NULL DEFAULT 1 COMMENT 'V4-1: 地图ID（1=草原）',
+  difficulty       VARCHAR(16)  NOT NULL DEFAULT 'normal' COMMENT 'V4-1: 难度 normal/hard/nightmare',
+  version          INT          NOT NULL DEFAULT 1 COMMENT '存档格式版本（2=V4-1，V3=1）',
   phase            VARCHAR(16)  NOT NULL DEFAULT 'MENU' COMMENT '阶段：MENU/PREPARE/RESERVE/BATTLE/WAVEEND/WIN/LOSE',
   luck_level       INT          NOT NULL DEFAULT 1,
   gold             INT          NOT NULL DEFAULT 0,
@@ -109,14 +112,100 @@ CREATE TABLE IF NOT EXISTS save_records (
   is_auto          TINYINT(1)   NOT NULL DEFAULT 0 COMMENT '1=自动存档 0=手动',
   saved_at         DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at       DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '乐观锁比对的版本戳',
-  PRIMARY KEY (uid),
+  PRIMARY KEY (uid, map_id, difficulty),
   CONSTRAINT fk_saves_uid_users FOREIGN KEY (uid) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='宝石TD 当前存档（每账号1条）'`
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='宝石TD 当前存档（每账号 地图×难度 各1条）'`
 
 	for name, stmt := range map[string]string{"users": usersSchema, "save_records": saveSchema} {
 		if _, err := h.ExecContext(ctx, stmt); err != nil {
 			return fmt.Errorf("create table %s failed: %w", name, err)
 		}
+	}
+
+	// ===== 旧表列迁移：users 可能已有表但缺 V4-1 列；INFORMATION_SCHEMA 检查后 ALTER =====
+	if err := h.ensureUsersColumns(ctx); err != nil {
+		return err
+	}
+	if err := h.ensureSaveRecordsPK(ctx); err != nil {
+		return err
+	}
+	return nil
+}
+
+// ensureUsersColumns 对老 users 表缺列时安全 ADD COLUMN
+func (h *MySQLHolder) ensureUsersColumns(ctx context.Context) error {
+	needCols := map[string]string{
+		"unlocked_maps":           "ADD COLUMN unlocked_maps JSON NULL COMMENT 'V4-1: 已解锁的地图id数组' AFTER active_session_at",
+		"talent_nodes":            "ADD COLUMN talent_nodes JSON NULL COMMENT 'V4-1: 已点亮天赋节点id列表' AFTER unlocked_maps",
+		"talent_points_available": "ADD COLUMN talent_points_available INT NOT NULL DEFAULT 0 COMMENT 'V4-1: 可用天赋点数' AFTER talent_nodes",
+	}
+	rows, err := h.QueryContext(ctx, "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'")
+	if err != nil {
+		return fmt.Errorf("check users columns: %w", err)
+	}
+	defer rows.Close()
+	have := map[string]bool{}
+	for rows.Next() {
+		var c string
+		if err := rows.Scan(&c); err != nil {
+			return err
+		}
+		have[c] = true
+	}
+	for col, ddl := range needCols {
+		if !have[col] {
+			if _, err := h.ExecContext(ctx, "ALTER TABLE users "+ddl); err != nil {
+				return fmt.Errorf("alter users add %s: %w", col, err)
+			}
+			log.Printf("[db-mysql] ✅ users 表新增列: %s", col)
+		}
+	}
+	return nil
+}
+
+// ensureSaveRecordsPK 对老 save_records（uid 单 PK）升级到 (uid,map_id,difficulty) 复合 PK
+// 兼容策略：
+//  1. 缺 map_id / difficulty 列 → ADD + 把存量行填充 DEFAULT 1/'normal'
+//  2. PRIMARY KEY 仍是 (uid) → DROP PK + ADD PK(uid,map_id,difficulty)
+func (h *MySQLHolder) ensureSaveRecordsPK(ctx context.Context) error {
+	rows, err := h.QueryContext(ctx, "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'save_records'")
+	if err != nil {
+		return fmt.Errorf("check save_records columns: %w", err)
+	}
+	defer rows.Close()
+	have := map[string]bool{}
+	for rows.Next() {
+		var c string
+		if err := rows.Scan(&c); err != nil {
+			return err
+		}
+		have[c] = true
+	}
+	if !have["map_id"] {
+		if _, err := h.ExecContext(ctx, "ALTER TABLE save_records ADD COLUMN map_id INT NOT NULL DEFAULT 1 COMMENT 'V4-1: 地图ID' AFTER uid"); err != nil {
+			return fmt.Errorf("alter save_records add map_id: %w", err)
+		}
+		log.Printf("[db-mysql] ✅ save_records 表新增列: map_id (默认值 1 填充存量)")
+	}
+	if !have["difficulty"] {
+		if _, err := h.ExecContext(ctx, "ALTER TABLE save_records ADD COLUMN difficulty VARCHAR(16) NOT NULL DEFAULT 'normal' COMMENT 'V4-1: 难度' AFTER map_id"); err != nil {
+			return fmt.Errorf("alter save_records add difficulty: %w", err)
+		}
+		log.Printf("[db-mysql] ✅ save_records 表新增列: difficulty (默认值 normal 填充存量)")
+	}
+	// 检查 PRIMARY KEY 是否仍是 (uid)
+	var pkDef string
+	pkRow := h.QueryRowContext(ctx, `
+SELECT GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX) AS cols
+FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'save_records' AND CONSTRAINT_NAME = 'PRIMARY'
+GROUP BY CONSTRAINT_NAME`)
+	if err := pkRow.Scan(&pkDef); err == nil && pkDef != "" && pkDef != "uid,map_id,difficulty" {
+		// 重建 PK（先删后加；注意 FK 依赖 uid 列本身不变，安全）
+		if _, err := h.ExecContext(ctx, "ALTER TABLE save_records DROP PRIMARY KEY, ADD PRIMARY KEY (uid, map_id, difficulty)"); err != nil {
+			return fmt.Errorf("alter save_records rebuild PK: %w", err)
+		}
+		log.Printf("[db-mysql] ✅ save_records PK 从 %q 升级为 (uid,map_id,difficulty)", pkDef)
 	}
 	return nil
 }

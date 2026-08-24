@@ -1,18 +1,83 @@
 services:
+
+  # ========= MySQL（核心资产：用户 + 存档；约束：root/138134） =========
+  mysql:
+    image: mysql:8.0
+    container_name: baoshitd-mysql
+    restart: unless-stopped
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --max_allowed_packet=67108864
+    environment:
+      MYSQL_ROOT_PASSWORD: 138134
+      MYSQL_DATABASE:      baoshitd
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-uroot", "-p138134", "-h", "127.0.0.1", "--silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # ========= Redis（热数据：SSO jti / 登录限流 / 短信验证码；约束：pwd=baoshiTD） =========
+  redis:
+    image: redis:7-alpine
+    container_name: baoshitd-redis
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "baoshiTD", "--appendonly", "yes"]
+    environment:
+      TZ: Asia/Shanghai
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "baoshiTD", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  # ========= 宝石TD Web + Go 后端（Dockerfile 多阶段，非 root 用户运行） =========
   baoshitd:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: baoshitd
+    restart: unless-stopped
+    depends_on:
+      mysql: { condition: service_healthy }
+      redis: { condition: service_healthy }
     ports:
       - "8080:8080"
-    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+      # 数据库 DSN：multiStatements=true 是项目硬性约束；host=mysql / db=baoshitd 与上面 mysql service 一致
+      TD_MYSQL_DSN: "root:138134@tcp(mysql:3306)/baoshitd?charset=utf8mb4&collation=utf8mb4_unicode_ci&parseTime=True&loc=UTC&tls=skip-verify&maxAllowedPacket=67108864&multiStatements=true"
+      # Redis 地址；密码由 TD_REDIS_PWD 提供（与 compose 里 redis requirepass 保持 baoshiTD）
+      TD_REDIS_ADDR: "redis:6379"
+      TD_REDIS_PWD:  "baoshiTD"
+      TD_REDIS_DB:   "0"
+      # HTTP 端口；需要改映射时同时同步上面 ports 的左值
+      TD_PORT: "8080"
+    volumes:
+      # 日志挂载到宿主机 logs/ 目录（与项目约束一致：按日期切分存放）；chown 给容器 appuser 可写
+      - ./logs:/app/logs
+      # 可选：把 conf/ 挂到宿主机方便改 JSON 配置（容器里已是 appuser 读权限；改完调 reload 接口热更新）
+      # - ./conf:/app/conf:ro
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/api/health"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 5s
-    # 可选：挂载日志目录
-    # volumes:
-    #   - ./logs:/app/logs
+      start_period: 10s
+
+volumes:
+  mysql-data:
+  redis-data:

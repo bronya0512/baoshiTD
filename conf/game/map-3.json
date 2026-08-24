@@ -1,0 +1,37 @@
+{
+  "id": 3,
+  "name": "冰霜高地",
+  "theme": "ice",
+  "difficulty": 3,
+  "maxWaves": 8,
+  "thumbnailUrl": "",
+  "environment": {
+    "id": "ice",
+    "name": "冰霜高地",
+    "towerMul": {
+      "attackIntervalMul": 0.95
+    },
+    "enemyMul": {
+      "attackIntervalMul": 1.18,
+      "hpMul": 1.0
+    }
+  },
+  "gridWidth": 10,
+  "gridHeight": 6,
+  "cellSize": 48,
+  "spawnPoints": [
+    { "x": 0, "y": 2 }
+  ],
+  "checkpoints": [
+    { "x": 3, "y": 4 }
+  ],
+  "base": { "x": 9, "y": 2, "hp": 20 },
+  "tiles": [
+    1,1,1,1,1,1,1,1,1,1,
+    1,0,0,0,1,0,0,0,0,1,
+    0,0,1,0,1,0,1,1,0,0,
+    1,0,1,0,1,0,0,1,0,1,
+    1,0,0,0,0,0,0,1,0,1,
+    1,1,1,1,1,1,1,1,1,1
+  ]
+}

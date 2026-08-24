@@ -1,0 +1,52 @@
+[
+  {
+    "id": 1,
+    "name": "草原平原",
+    "theme": "grassland",
+    "difficulty": 1,
+    "maxWaves": 8,
+    "environment": {
+      "id": "grass",
+      "name": "草原平原",
+      "towerMul": {
+        "rangeMul": 1.05
+      },
+      "enemyMul": {}
+    }
+  },
+  {
+    "id": 2,
+    "name": "熔岩洞穴",
+    "theme": "lava",
+    "difficulty": 2,
+    "maxWaves": 8,
+    "environment": {
+      "id": "lava",
+      "name": "熔岩洞穴",
+      "towerMul": {},
+      "enemyMul": {
+        "damageMul": 0.8
+      },
+      "onTick": "lava_damage_5hp",
+      "lavaDmg": 5,
+      "lavaEverySec": 0.5
+    }
+  },
+  {
+    "id": 3,
+    "name": "冰霜高地",
+    "theme": "ice",
+    "difficulty": 3,
+    "maxWaves": 8,
+    "environment": {
+      "id": "ice",
+      "name": "冰霜高地",
+      "towerMul": {
+        "attackIntervalMul": 0.95
+      },
+      "enemyMul": {
+        "attackIntervalMul": 1.18
+      }
+    }
+  }
+]

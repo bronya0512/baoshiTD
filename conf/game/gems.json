@@ -1,0 +1,82 @@
+{
+  "elements": [
+    {
+      "key": "fire",
+      "name": "火",
+      "color": "#e53e3e",
+      "baseBonus": {
+        "attrMulDamage": 1.2
+      }
+    },
+    {
+      "key": "ice",
+      "name": "水",
+      "color": "#3182ce",
+      "baseBonus": {
+        "attrMulAttackInterval": 0.83,
+        "slowOnHitPct01": 0.3,
+        "slowOnHitSec": 2
+      }
+    },
+    {
+      "key": "thunder",
+      "name": "风",
+      "color": "#ecc94b",
+      "baseBonus": {
+        "attrMulRange": 1.15
+      }
+    },
+    {
+      "key": "poison",
+      "name": "土",
+      "color": "#38a169",
+      "baseBonus": {
+        "slowOnHitPct01": 0.2,
+        "slowOnHitSec": 1.5
+      }
+    },
+    {
+      "key": "light",
+      "name": "光",
+      "color": "#faf089",
+      "baseBonus": {
+        "killGemChanceAdd01": 0.15
+      }
+    },
+    {
+      "key": "dark",
+      "name": "暗",
+      "color": "#805ad5",
+      "baseBonus": {
+        "attrMulDamage": 1.1,
+        "killGemChanceAdd01": 0.1
+      }
+    }
+  ],
+  "rarities": [
+    {
+      "key": "common",
+      "name": "1阶",
+      "multiplier": 1,
+      "dropRate": 0.6
+    },
+    {
+      "key": "rare",
+      "name": "2阶",
+      "multiplier": 1.5,
+      "dropRate": 0.28
+    },
+    {
+      "key": "epic",
+      "name": "3阶",
+      "multiplier": 2.2,
+      "dropRate": 0.1
+    },
+    {
+      "key": "legendary",
+      "name": "4阶",
+      "multiplier": 3,
+      "dropRate": 0.02
+    }
+  ]
+}

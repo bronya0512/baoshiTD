@@ -1,0 +1,980 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>序列帧动画 Demo · 低成本替换 Spine 骨骼动画</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#334155; --line:#475569;
+    --text:#e2e8f0; --muted:#94a3b8; --ok:#22c55e; --warn:#f59e0b; --er:#ef4444; --ac:#38bdf8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif}
+  header{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  header h1{font-size:18px;margin:0;font-weight:600}
+  header .tag{padding:2px 8px;border-radius:10px;background:rgba(56,189,248,.15);color:var(--ac);font-size:12px}
+  header .sub{color:var(--muted);font-size:13px}
+  main{display:grid;grid-template-columns:260px 1fr 320px;gap:14px;padding:14px;min-height:calc(100vh - 60px)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+  .card h2{font-size:14px;margin:0 0 10px 0;color:var(--ac)}
+  .row{display:flex;gap:8px;align-items:center;margin:8px 0;flex-wrap:wrap}
+  label{color:var(--muted);font-size:12px;min-width:56px}
+  select,input,button{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font-size:13px}
+  button{cursor:pointer;transition:.15s}
+  button:hover{border-color:var(--ac)}
+  button.primary{background:var(--ac);color:#082f49;border-color:var(--ac);font-weight:600}
+  button.primary:hover{filter:brightness(1.1)}
+  button.danger{background:rgba(239,68,68,.15);border-color:var(--er);color:#fca5a5}
+  input[type=range]{padding:0}
+  .canvas-wrap{display:flex;flex-direction:column;gap:10px}
+  #stage{background:
+    linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px) 0 0/32px 32px,
+    linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px) 0 0/32px 32px,
+    #0b1222;
+    border:1px solid var(--line);border-radius:10px;display:block;width:100%;aspect-ratio:16/10;cursor:crosshair}
+  .hud{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+  .hud b{color:var(--text);font-weight:600}
+  .pill{padding:2px 8px;border-radius:10px;background:rgba(34,197,94,.15);color:#86efac;font-size:11px}
+  .pill.warn{background:rgba(245,158,11,.15);color:#fcd34d}
+  textarea{width:100%;height:180px;background:#0b1222;color:#a5f3fc;border:1px solid var(--line);border-radius:6px;padding:8px;font:12px/1.45 ui-monospace,"JetBrains Mono","Cascadia Code",Consolas,monospace;resize:vertical}
+  .kv{font-size:12px;display:grid;grid-template-columns:88px 1fr;gap:4px 10px}
+  .kv span.v{color:var(--text)}
+  .cost{margin-top:10px;padding:8px;border:1px dashed var(--line);border-radius:6px;background:rgba(56,189,248,.05);font-size:12px;color:var(--muted)}
+  .cost b{color:#fcd34d;font-weight:600}
+  .samples{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}
+  .samples canvas{width:100%;aspect-ratio:1;background:#0b1222;border:1px solid var(--line);border-radius:6px;image-rendering:pixelated}
+  pre.code{margin:0;padding:10px;background:#0b1222;border:1px solid var(--line);border-radius:6px;font:12px/1.45 ui-monospace,Consolas,monospace;color:#c4b5fd;overflow-x:auto}
+  pre.code .c1{color:#86efac}pre.code .c2{color:#fca5a5}pre.code .c3{color:#fcd34d}pre.code .c4{color:#93c5fd}
+  .tabs{display:flex;gap:0;border-bottom:1px solid var(--line);margin:10px 0 8px}
+  .tabs button{border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:var(--muted)}
+  .tabs button.on{border-color:var(--ac);color:var(--ac)}
+  @media (max-width: 1100px){main{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1>序列帧动画 Demo</h1>
+  <span class="tag">低成本 · 零依赖 · 纯 Canvas 2D</span>
+  <span class="sub">对比 Spine 骨骼动画：制作成本 ↓80%，集成复杂度 ↓70%，性能持平甚至更快</span>
+</header>
+
+<main>
+  <!-- 左：控制器 -->
+  <aside class="card">
+    <h2>▶ 播放控制</h2>
+    <div class="row"><label>动画</label>
+      <select id="animSelect" style="flex:1">
+        <option value="shockwave">冲击波（攻击爆炸）8 帧</option>
+        <option value="flame">火焰（塔射击特效）10 帧</option>
+        <option value="iceShard">冰晶（减速命中）8 帧</option>
+        <option value="towerAttack">塔攻击动作（TP/真实素材）6 帧</option>
+      </select>
+    </div>
+    <div class="row">
+      <button id="btnPlay" class="primary">播放</button>
+      <button id="btnPause">暂停</button>
+      <button id="btnStop">停止</button>
+    </div>
+    <div class="row"><label>循环</label>
+      <select id="loopMode">
+        <option value="none">单次</option>
+        <option value="loop" selected>循环</option>
+        <option value="pingpong">来回</option>
+      </select>
+    </div>
+    <div class="row"><label>速度</label>
+      <input id="speed" type="range" min="0.25" max="3" step="0.05" value="1" style="flex:1" />
+      <span id="speedVal" style="min-width:32px;text-align:right">1.00×</span>
+    </div>
+    <div class="row"><label>当前帧</label>
+      <input id="frame" type="range" min="0" max="7" step="1" value="0" style="flex:1" />
+      <span id="frameVal" style="min-width:32px;text-align:right">0/8</span>
+    </div>
+
+    <h2 style="margin-top:16px">⇲ 投放实例</h2>
+    <div class="row" style="color:var(--muted);font-size:12px">
+      点击右侧画布任意位置投放 1 个动画实例（不同类型叠加）。<br>
+      展示：<span class="pill">多实例并发</span>
+    </div>
+    <div class="row">
+      <button id="btnSpawnSw" class="primary">+ 冲击波</button>
+      <button id="btnSpawnFl">+ 火焰</button>
+      <button id="btnSpawnIc">+ 冰晶</button>
+      <button id="btnClear" class="danger">清空画布</button>
+    </div>
+
+    <h2 style="margin-top:16px">📊 成本对比</h2>
+    <div id="costBox" class="cost"></div>
+  </aside>
+
+  <!-- 中：舞台 + HUD -->
+  <section class="card canvas-wrap">
+    <div class="hud">
+      <div><span id="hudName">—</span> <b id="hudFrame">0/0</b></div>
+      <div>FPS <b id="fps">0</b></div>
+      <div>实例数 <b id="instances">0</b></div>
+      <div>主循环 <span class="pill">requestAnimationFrame</span></div>
+      <div>状态 <span id="hudStatus" class="pill warn">停止</span></div>
+    </div>
+    <canvas id="stage" width="960" height="600"></canvas>
+    <div class="hud" style="justify-content:space-between">
+      <div>💡 <b>点击画布空白处</b>投放一个「当前选择的动画」实例。</div>
+      <div>🎨 下方显示三张 sprite sheet 预览（自动在运行时用 Canvas 合成）</div>
+    </div>
+    <div class="samples">
+      <div><div style="font-size:12px;color:var(--muted);margin-bottom:4px">shockwave.png <span class="pill">1024×128</span></div><canvas id="ss1" width="1024" height="128"></canvas></div>
+      <div><div style="font-size:12px;color:var(--muted);margin-bottom:4px">flame.png <span class="pill">1280×128</span></div><canvas id="ss2" width="1280" height="128"></canvas></div>
+      <div><div style="font-size:12px;color:var(--muted);margin-bottom:4px">iceShard.png <span class="pill">1024×128</span></div><canvas id="ss3" width="1024" height="128"></canvas></div>
+    </div>
+    <div class="samples" style="grid-template-columns:1fr">
+      <div><div style="font-size:12px;color:var(--muted);margin-bottom:4px"><b>spritesheet_1.png · 塔攻击动作（真实素材 / FramePacker）</b> <span class="pill">4096×2048 · 6 帧 @720²</span> <span class="pill warn" id="tpStatus">加载中…</span></div><canvas id="ss4" width="1228" height="488"></canvas></div>
+    </div>
+  </section>
+
+  <!-- 右：数据 & 代码 -->
+  <aside class="card">
+    <h2>🧾 当前动画数据</h2>
+    <div id="kvAnim" class="kv"></div>
+    <div class="tabs" id="tabs">
+      <button data-tab="json" class="on">JSON 配置</button>
+      <button data-tab="api">API 示例</button>
+      <button data-tab="migrate">替换 Spine</button>
+    </div>
+    <div id="tab-json">
+      <textarea id="jsonView" readonly></textarea>
+    </div>
+    <div id="tab-api" style="display:none">
+<pre class="code"><span class="c4">const</span> player = <span class="c2">new</span> <span class="c3">FrameAnimationPlayer</span>();
+<span class="c4">await</span> player.<span class="c1">load</span>({
+  name: <span class="c3">'shockwave'</span>,
+  imageUrl: <span class="c3">'assets/anims/shockwave.png'</span>,
+  frameWidth: 128, frameHeight: 128,
+  cols: 8, rows: 1, count: 8,
+  fps: 24, loop: <span class="c2">true</span>,
+  <span class="c4">onComplete</span>: () =&gt; console.<span class="c1">log</span>(<span class="c3">'done'</span>)
+});
+
+<span class="c4">function</span> <span class="c3">tick</span>(dt) {
+  player.<span class="c1">update</span>(dt);
+  player.<span class="c1">draw</span>(ctx, 300, 200, {scale:2, alpha:.9});
+}</pre>
+    </div>
+    <div id="tab-migrate" style="display:none">
+<pre class="code"><span class="c2">// 替换前：Spine 方案
+// 1. 美术出 3 组 .skel+.atlas+.png（3×3 = 9 个文件）
+// 2. 集成 spine-3.8 运行时（~300 KB）
+// 3. 手写 setAnimation + trackEntry 监听
+// 4. 骨骼变换矩阵 / 蒙皮 mesh 每帧计算</span>
+
+<span class="c4">const</span> spine = <span class="c2">new</span> <span class="c3">Spine</span>(skelData, atlas);
+spine.state.<span class="c1">setAnimation</span>(0, <span class="c3">'attack'</span>, <span class="c2">false</span>);
+spine.skeleton.x = x; spine.skeleton.y = y;
+spine.<span class="c1">update</span>(dt); spine.<span class="c1">draw</span>(ctx); <span class="c2">/* 每帧 CPU 重算所有骨骼 */</span>
+
+<span class="c2">// 替换后：序列帧方案
+// 1. 美术导出 3 张 sprite sheet（3 个 PNG）
+// 2. JSON 描述帧数/尺寸/帧率（<20 行）
+// 3. 无运行时，Player &lt;10 KB（本页提供）
+// 4. 纯 drawImage 切图：GPU 友好，CPU 零开销</span>
+
+<span class="c4">const</span> fa = <span class="c2">new</span> <span class="c3">FrameAnimationPlayer</span>();
+fa.<span class="c1">loadSync</span>(ANIM.shockwave);      <span class="c2">// 内联 JSON</span>
+fa.<span class="c1">play</span>(<span class="c3">'attack'</span>);
+fa.<span class="c1">update</span>(dt);
+fa.<span class="c1">draw</span>(ctx, x, y, {scale:2}); <span class="c2">/* drawImage 坐标直接切 */</span>
+
+<span class="c3">// 制作成本对比（以 3 个特效为例）
+// Spine: 美术 rig + 权重 + K帧 + 导出调试 ≈ 6-8 小时
+// 帧动画: 序列输出 + 打图集 + 写 JSON   ≈ 30-60 分钟
+// 结论：序列帧可覆盖 80% 的 2D 特效需求。</span></pre>
+    </div>
+  </aside>
+</main>
+
+<script>
+/* ============================================================
+ *  FrameAnimationPlayer —— 纯 Canvas 2D 序列帧播放器
+ *  功能：多动画定义 / 多实例并发 / 循环（none/loop/pingpong）/
+ *        速度倍率 / 帧步进 / 完成回调 / 事件钩子 / draw 变换
+ * ============================================================ */
+(function (global) {
+  'use strict';
+
+  function FrameAnimationPlayer() {
+    this.anims = {};      // name -> {image, frames:[{x,y,w,h, ox,oy, dur}], meta:{fps,total,loop}}
+    this._instances = []; // 运行中的实例
+  }
+  FrameAnimationPlayer.prototype = {
+    /** 从 URL 加载精灵图 + 元数据 */
+    load: function (def) {
+      var self = this;
+      return new Promise(function (resolve, reject) {
+        if (!def || !def.name) return reject(new Error('def.name 必传'));
+        var img = new Image();
+        img.onload = function () {
+          var anim = self._parseDef(def, img);
+          self.anims[def.name] = anim;
+          resolve(anim);
+        };
+        img.onerror = function (e) { reject(new Error('img load fail: ' + def.imageUrl)); };
+        img.crossOrigin = 'anonymous';
+        img.src = def.imageUrl;
+      });
+    },
+    /** 同步加载（精灵图已在内存：HTMLCanvasElement / HTMLImageElement / ImageBitmap） */
+    loadSync: function (def) {
+      if (!def || !def.name) throw new Error('def.name required');
+      var img = def.image;
+      if (!img || !(img.width && img.height)) throw new Error('def.image invalid (no width/height)');
+      this.anims[def.name] = this._parseDef(def, img);
+      return this.anims[def.name];
+    },
+    /** 加载 TexturePacker / FramePacker 风格的 JSON（Hash 或 Array 格式都行） + PNG
+     *  def: { name, imageUrl, jsonUrl,
+     *         order?: ['001','002',...] 或 (entryKey,i)=>number 排序；不传就对 Object.keys 做字符串升序
+     *         fps?, loop?, defaultScale?,
+     *         anchor?: {x:0.5, y:1.0} 相对 sourceSize 的锚点 (默认 x=0.5 正中, y=1.0 脚底落地 —— 适配角色/塔攻击)
+     *       }
+     */
+    loadTP: function (def) {
+      var self = this;
+      return new Promise(function (resolve, reject) {
+        if (!def || !def.name) return reject(new Error('def.name 必传'));
+        if (!def.jsonUrl) return reject(new Error('def.jsonUrl 必传（TexturePacker .json 文件地址）'));
+        // 1) 先拉 JSON
+        fetch(def.jsonUrl, {cache:'no-cache'})
+          .then(function (r) { if (!r.ok) throw new Error('json '+r.status); return r.json(); })
+          .then(function (tp) {
+            // 2) 决定帧顺序
+            var keys = Object.keys(tp.frames || {});
+            var orderFn, orderArr;
+            if (Array.isArray(def.order)) { orderArr = def.order.slice(); }
+            else if (typeof def.order === 'function') { orderFn = def.order; }
+            else { keys.sort(); orderArr = keys.slice(); }
+            // 过滤：orderArr 是前缀/全名匹配 tp.frames 的 key
+            var resolved = [];
+            if (orderArr) {
+              for (var oi = 0; oi < orderArr.length; oi++) {
+                var want = orderArr[oi];
+                var got = null;
+                if (tp.frames[want]) got = want;
+                else { // 前缀匹配：want='001' 命中 '001.png' / 'attack_001' 等
+                  for (var ki = 0; ki < keys.length; ki++) {
+                    if (keys[ki].indexOf(want) === 0 || keys[ki].indexOf('_' + want) >= 0 || keys[ki].indexOf('-' + want) >= 0) { got = keys[ki]; break; }
+                  }
+                }
+                if (got) resolved.push(got);
+              }
+            } else {
+              resolved = keys.slice();
+              if (orderFn) resolved.sort(function (a, b) { return orderFn(a, tp.frames[a]) - orderFn(b, tp.frames[b]); });
+            }
+            // 3) 解析锚点
+            var anchorX = (def.anchor && typeof def.anchor.x === 'number') ? def.anchor.x : 0.5;
+            var anchorY = (def.anchor && typeof def.anchor.y === 'number') ? def.anchor.y : 1.0;
+            // 4) 构造逐帧 def.frames：保留 sourceSize / spriteSourceSize 的 ox/oy 偏移（trim 后不漂移）
+            var frames = [];
+            for (var fi = 0; fi < resolved.length; fi++) {
+              var entry = tp.frames[resolved[fi]];
+              var fr = entry.frame || {};            // {x,y,w,h} 图集矩形
+              var src = entry.sourceSize || fr;      // {w,h} 逻辑画布
+              var sss = entry.spriteSourceSize || {x:0,y:0,w:fr.w,h:fr.h}; // 实际内容在逻辑画布中的位置
+              // 锚点（相对逻辑画布 src.w, src.h → 绝对像素：anchorPxX, anchorPxY）
+              var apx = (src.w || fr.w) * anchorX;
+              var apy = (src.h || fr.h) * anchorY;
+              // 转换为 Player 需要的 ox, oy：
+              //   drawImage 绘制的是 fr (图集矩形) 到屏幕 (dx,dy) 左上角，再平移 (ox,oy) — 我们希望屏幕坐标 (sx,sy) = 锚点
+              //   即：sx = dx - f.w/2 - ox + sss.x + fr.w/2  →  化简：ox = sss.x - apx ; oy = sss.y - apy
+              var ox = (sss.x|0) - apx;
+              var oy = (sss.y|0) - apy;
+              frames.push({ x: fr.x|0, y: fr.y|0, w: fr.w|0, h: fr.h|0, ox: ox, oy: oy });
+            }
+            // 5) 加载 imageUrl（或 tp.meta.image）
+            var imageUrl = def.imageUrl || (tp.meta && tp.meta.image);
+            var img = new Image();
+            img.onload = function () {
+              var animDef = {
+                name: def.name,
+                fps: def.fps || 24,
+                loop: def.loop || 'none',
+                frames: frames,
+                defaultScale: typeof def.defaultScale === 'number' ? def.defaultScale : 1
+              };
+              var anim = self._parseDef(animDef, img);
+              anim.defaultScale = animDef.defaultScale;
+              anim.anchor = { x: anchorX, y: anchorY };
+              self.anims[def.name] = anim;
+              resolve(anim);
+            };
+            img.onerror = function () { reject(new Error('image load fail: ' + imageUrl)); };
+            img.crossOrigin = 'anonymous';
+            img.src = imageUrl;
+          })
+          .then(null, function (e) { reject(e); });
+      });
+    },
+    /** 把元数据 + 精灵图解析成可播放动画 */
+    _parseDef: function (def, img) {
+      var fps = def.fps || 24;
+      var frameDur = 1 / fps;
+      var frames = [];
+      if (Array.isArray(def.frames)) {
+        for (var i = 0; i < def.frames.length; i++) {
+          var f = def.frames[i];
+          frames.push({
+            x: f.x|0, y: f.y|0, w: (f.w|0) || (def.frameWidth|0), h: (f.h|0) || (def.frameHeight|0),
+            ox: f.ox|0, oy: f.oy|0,
+            dur: (typeof f.duration === 'number') ? f.duration : frameDur
+          });
+        }
+      } else {
+        // 按 cols x rows 网格切帧
+        var cols = def.cols | 0, rows = def.rows | 0 || 1;
+        var fw = def.frameWidth | 0, fh = def.frameHeight | 0;
+        var count = (def.count | 0) || (cols * rows);
+        if (!fw) fw = Math.floor(img.width / cols);
+        if (!fh) fh = Math.floor(img.height / rows);
+        for (var k = 0; k < count; k++) {
+          var cc = k % cols, rr = Math.floor(k / cols);
+          frames.push({ x: cc * fw, y: rr * fh, w: fw, h: fh, ox: 0, oy: 0, dur: frameDur });
+        }
+      }
+      return {
+        image: img, frames: frames,
+        meta: {
+          name: def.name,
+          fps: fps,
+          total: frames.length,
+          loop: typeof def.loop === 'string' ? def.loop : (def.loop ? 'loop' : 'none')
+        }
+      };
+    },
+    /** 创建一个播放实例（可同时成千上百个独立播放） */
+    spawn: function (name, opts) {
+      var a = this.anims[name];
+      if (!a) throw new Error('anim not loaded: ' + name);
+      opts = opts || {};
+      var inst = {
+        anim: a,
+        name: name,
+        t: 0,
+        frame: 0,
+        dir: 1,            // pingpong 方向
+        speed: typeof opts.speed === 'number' ? opts.speed : 1,
+        loop: opts.loop || a.meta.loop || 'none',
+        playing: !(opts.autoplay === false),
+        x: opts.x | 0, y: opts.y | 0,
+        scale: typeof opts.scale === 'number' ? opts.scale : 1,
+        alpha: typeof opts.alpha === 'number' ? opts.alpha : 1,
+        rotation: opts.rotation | 0,
+        onComplete: opts.onComplete || null,
+        onFrame: opts.onFrame || null,
+        ended: false,
+        _userData: opts.userData || null
+      };
+      this._instances.push(inst);
+      return inst;
+    },
+    /** 移除实例 */
+    kill: function (inst) {
+      var i = this._instances.indexOf(inst);
+      if (i >= 0) this._instances.splice(i, 1);
+    },
+    killAll: function () { this._instances.length = 0; },
+    instances: function () { return this._instances.slice(); },
+
+    /** 每帧推进所有实例时间（dt 秒数，通常来自 RAF） */
+    update: function (dt) {
+      dt = Math.min(dt, 1/10); // clamp 避免后台 tab 回来大跳
+      for (var i = this._instances.length - 1; i >= 0; i--) {
+        var inst = this._instances[i];
+        if (!inst.playing || inst.ended) continue;
+        var a = inst.anim;
+        inst.t += dt * inst.speed;
+        // 累计推进到正确帧（>1 帧也能连续跳，不会丢结束事件）
+        while (inst.t >= a.frames[inst.frame].dur) {
+          inst.t -= a.frames[inst.frame].dur;
+          var before = inst.frame;
+          this._advance(inst);
+          if (inst.onFrame) inst.onFrame(inst.frame, before);
+          if (inst.ended) break;
+        }
+      }
+    },
+    _advance: function (inst) {
+      var a = inst.anim;
+      var n = a.meta.total;
+      if (inst.loop === 'pingpong') {
+        inst.frame += inst.dir;
+        if (inst.frame >= n) { inst.frame = n - 2; inst.dir = -1; if (inst.frame < 0) inst.frame = 0; }
+        else if (inst.frame < 0) { inst.frame = 1; inst.dir = 1; this._finish(inst); }
+      } else if (inst.loop === 'loop') {
+        inst.frame = (inst.frame + 1) % n;
+        if (inst.frame === 0 && inst.onComplete) inst.onComplete(inst, 'loop');
+      } else { // none
+        inst.frame++;
+        if (inst.frame >= n) { inst.frame = n - 1; this._finish(inst); }
+      }
+    },
+    _finish: function (inst) {
+      inst.ended = true;
+      inst.playing = false;
+      if (inst.onComplete) inst.onComplete(inst, 'end');
+    },
+
+    /** 单帧绘制（或绘制某个实例） */
+    draw: function (ctx, nameOrInst, x, y, opts) {
+      opts = opts || {};
+      var inst, a, fi;
+      if (typeof nameOrInst === 'string') {
+        a = this.anims[nameOrInst];
+        if (!a) return;
+        fi = (typeof opts.frame === 'number') ? opts.frame : 0;
+      } else {
+        inst = nameOrInst;
+        a = inst.anim; fi = inst.frame;
+        x = (typeof x === 'number') ? x : inst.x;
+        y = (typeof y === 'number') ? y : inst.y;
+      }
+      var f = a.frames[fi];
+      if (!f) return;
+      ctx.save();
+      var alpha = inst ? (inst.alpha) : (typeof opts.alpha === 'number' ? opts.alpha : 1);
+      var scale = inst ? inst.scale : (typeof opts.scale === 'number' ? opts.scale : 1);
+      var rot   = inst ? inst.rotation : (opts.rotation | 0);
+      if (alpha < 1) ctx.globalAlpha = alpha;
+      if (rot || scale !== 1 || (opts.ox|0) || (opts.oy|0)) {
+        var ox = (f.ox - (opts.ox|0)) - f.w / 2;
+        var oy = (f.oy - (opts.oy|0)) - f.h / 2;
+        ctx.translate(x - ox*scale, y - oy*scale);
+        if (rot) ctx.rotate(rot * Math.PI / 180);
+        if (scale !== 1) ctx.scale(scale, scale);
+        ctx.drawImage(a.image, f.x, f.y, f.w, f.h, 0, 0, f.w, f.h);
+      } else {
+        var dx = x - f.w / 2, dy = y - f.h / 2;
+        ctx.drawImage(a.image, f.x, f.y, f.w, f.h, dx, dy, f.w, f.h);
+      }
+      ctx.restore();
+    },
+    /** 绘制所有 spawn 的实例（主循环推荐） */
+    drawAll: function (ctx) {
+      for (var i = 0; i < this._instances.length; i++) {
+        this.draw(ctx, this._instances[i]);
+      }
+    }
+  };
+
+  global.FrameAnimationPlayer = FrameAnimationPlayer;
+})(window);
+
+/* ============================================================
+ *  Demo：用 Canvas 动态生成 3 套 sprite sheet，模拟"美术打图集输出"
+ *  3 套动画：
+ *   1) shockwave  冲击波/攻击爆炸 8 帧 128×128  @24fps
+ *   2) flame      火焰塔射击粒子       10 帧 128×128  @24fps
+ *   3) iceShard   冰晶命中（减速）     8 帧 128×128  @20fps
+ * ============================================================ */
+(function () {
+  function mkSheet(frames, fw, fh, drawFn) {
+    var n = frames;
+    var cvs = document.createElement('canvas');
+    cvs.width = fw * n; cvs.height = fh;
+    var ctx = cvs.getContext('2d');
+    for (var i = 0; i < n; i++) drawFn(ctx, i, n, i * fw, 0, fw, fh);
+    return cvs; // 可以 toDataURL('image/png') 直接下载
+  }
+
+  function drawShock(ctx, i, n, x, y, w, h) {
+    var t = i / (n - 1);
+    var cx = x + w/2, cy = y + h/2;
+    // 背景透明
+    ctx.clearRect(x, y, w, h);
+    // 多层冲击波：半径从 10% -> 90%，透明度 1->0
+    var layers = [
+      {r:0.1+t*0.9, c:'rgba(56,189,248,',   w:6},
+      {r:0.05+t*0.7, c:'rgba(125,211,252,', w:3},
+      {r:0.02+t*0.5, c:'rgba(186,230,253,', w:2}
+    ];
+    for (var li = 0; li < layers.length; li++) {
+      var L = layers[li];
+      ctx.beginPath();
+      ctx.arc(cx, cy, L.r * w/2, 0, Math.PI*2);
+      ctx.lineWidth = L.w;
+      ctx.strokeStyle = L.c + (1-t).toFixed(3) + ')';
+      ctx.stroke();
+    }
+    // 中心火花
+    var a = Math.max(0, 1 - t*1.5);
+    var grad = ctx.createRadialGradient(cx,cy,1,cx,cy,w*0.25);
+    grad.addColorStop(0, 'rgba(255,255,255,' + a + ')');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, w*0.25, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  function drawFlame(ctx, i, n, x, y, w, h) {
+    ctx.clearRect(x, y, w, h);
+    var cx = x + w/2;
+    var by = y + h - 8;            // 底部火源
+    var flick = Math.sin(i * 1.3 + i*i*0.2) * 0.15;
+    var flameFrames = [
+      {height:0.70, topNarrow:0.62}, {height:0.82, topNarrow:0.55},
+      {height:0.75, topNarrow:0.58}, {height:0.90, topNarrow:0.45},
+      {height:0.78, topNarrow:0.52}, {height:0.88, topNarrow:0.48},
+      {height:0.72, topNarrow:0.60}, {height:0.95, topNarrow:0.40 + flick*0.2},
+      {height:0.80, topNarrow:0.50}, {height:0.86, topNarrow:0.46}
+    ];
+    var f = flameFrames[i % flameFrames.length];
+    // 外焰 橙红
+    var grad = ctx.createLinearGradient(cx, by, cx, by - h*f.height);
+    grad.addColorStop(0, '#fcd34d');
+    grad.addColorStop(0.5, '#f97316');
+    grad.addColorStop(1, 'rgba(220,38,38,0.1)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    var bw = w * 0.48;
+    var tw = w * f.topNarrow;
+    var topY = by - h * f.height;
+    ctx.moveTo(cx - bw, by);
+    // 贝塞尔左
+    ctx.bezierCurveTo(cx - bw*1.05, by - h*0.25,  cx - tw*1.2,   by - h*0.65,  cx, topY);
+    // 贝塞尔右
+    ctx.bezierCurveTo(cx + tw*1.2,   by - h*0.65,  cx + bw*1.05, by - h*0.25,  cx + bw, by);
+    ctx.closePath();
+    ctx.fill();
+    // 内焰 蓝白
+    var grad2 = ctx.createLinearGradient(cx, by, cx, by - h*0.55);
+    grad2.addColorStop(0, '#ffffff');
+    grad2.addColorStop(0.6, '#bae6fd');
+    grad2.addColorStop(1, 'rgba(125,211,252,0)');
+    ctx.fillStyle = grad2;
+    ctx.beginPath();
+    ctx.moveTo(cx - bw*0.5, by);
+    ctx.bezierCurveTo(cx - bw*0.55, by - h*0.2, cx - tw*0.6, by - h*0.45, cx, by - h*0.55);
+    ctx.bezierCurveTo(cx + tw*0.6, by - h*0.45, cx + bw*0.55, by - h*0.2, cx + bw*0.5, by);
+    ctx.closePath();
+    ctx.fill();
+    // 火星
+    for (var s = 0; s < 3; s++) {
+      var seed = (i*3 + s*7) % 100 / 100;
+      var sx = cx + (seed - 0.5) * w * 0.5;
+      var sy = by - (h * (0.55 + seed * 0.3 + flick*0.1));
+      ctx.fillStyle = 'rgba(253,224,71,' + (0.4 + seed*0.5) + ')';
+      ctx.beginPath();
+      ctx.arc(sx, sy, 1.5 + seed*1.5, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  function drawIce(ctx, i, n, x, y, w, h) {
+    ctx.clearRect(x, y, w, h);
+    var t = i / (n - 1);
+    var cx = x + w/2, cy = y + h/2;
+    var rot = t * Math.PI / 3;   // 旋转 60°
+    var scale = 0.55 + 0.45 * Math.sin(t * Math.PI); // 缩放呼吸
+    var sparkAlpha = 0.5 + 0.5 * Math.sin(t * Math.PI * 2 + i);
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rot);
+    ctx.scale(scale, scale);
+
+    // 六角冰晶主干
+    var R = w * 0.42;
+    function drawArm(ang) {
+      ctx.save();
+      ctx.rotate(ang);
+      // 主臂线
+      ctx.strokeStyle = '#bae6fd';
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,-R); ctx.stroke();
+      ctx.strokeStyle = '#7dd3fc';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,-R); ctx.stroke();
+      // 枝杈
+      for (var b = 2; b <= 4; b++) {
+        var yy = -R * b / 5;
+        var len = R * 0.18 * (b === 3 ? 1.2 : 1);
+        ctx.strokeStyle = '#e0f2fe';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.moveTo(0, yy);
+        ctx.lineTo(-len, yy - len*0.6);
+        ctx.moveTo(0, yy);
+        ctx.lineTo( len, yy - len*0.6);
+        ctx.stroke();
+      }
+      // 顶端菱形
+      ctx.fillStyle = 'rgba(186,230,253,' + (0.6 + 0.3 * sparkAlpha) + ')';
+      ctx.beginPath();
+      ctx.moveTo(0, -R - 8);
+      ctx.lineTo(5, -R); ctx.lineTo(0, -R + 8); ctx.lineTo(-5, -R);
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+    for (var a = 0; a < 6; a++) drawArm(a * Math.PI / 3);
+    // 中心核
+    var cg = ctx.createRadialGradient(0,0,0,0,0,R*0.35);
+    cg.addColorStop(0, 'rgba(255,255,255,0.95)');
+    cg.addColorStop(1, 'rgba(125,211,252,0.1)');
+    ctx.fillStyle = cg;
+    ctx.beginPath(); ctx.arc(0,0,R*0.35,0,Math.PI*2); ctx.fill();
+
+    ctx.restore();
+
+    // 外围闪星点
+    for (var s = 0; s < 6; s++) {
+      var ang = s * Math.PI / 3 + rot * 0.4;
+      var rr = R * 1.1 + 8 * Math.sin(t * Math.PI * 3 + s);
+      var spx = cx + Math.cos(ang) * rr;
+      var spy = cy + Math.sin(ang) * rr;
+      ctx.fillStyle = 'rgba(224,242,254,' + (0.6 + 0.4*sparkAlpha) + ')';
+      ctx.fillRect(spx-1, spy-1, 2, 2);
+    }
+  }
+
+  // 生成 3 张精灵图，画到预览 canvas 上
+  var FW = 128, FH = 128;
+  var sheetShock = mkSheet(8,  FW, FH, drawShock);
+  var sheetFlame = mkSheet(10, FW, FH, drawFlame);
+  var sheetIce   = mkSheet(8,  FW, FH, drawIce);
+
+  document.getElementById('ss1').getContext('2d').drawImage(sheetShock, 0, 0,
+    sheetShock.width, sheetShock.height, 0, 0, 1024, 128);
+  document.getElementById('ss2').getContext('2d').drawImage(sheetFlame, 0, 0,
+    sheetFlame.width, sheetFlame.height, 0, 0, 1280, 128);
+  document.getElementById('ss3').getContext('2d').drawImage(sheetIce, 0, 0,
+    sheetIce.width, sheetIce.height, 0, 0, 1024, 128);
+
+  // 加载到 Player
+  var player = new FrameAnimationPlayer();
+  window.__demoPlayer = player;   // 暴露给调试 / 集成测试
+  player.loadSync({
+    name: 'shockwave', image: sheetShock,
+    frameWidth: FW, frameHeight: FH, cols: 8, rows: 1, count: 8, fps: 24, loop: 'none'
+  });
+  player.loadSync({
+    name: 'flame', image: sheetFlame,
+    frameWidth: FW, frameHeight: FH, cols: 10, rows: 1, count: 10, fps: 24, loop: 'loop'
+  });
+  player.loadSync({
+    name: 'iceShard', image: sheetIce,
+    frameWidth: FW, frameHeight: FH, cols: 8, rows: 1, count: 8, fps: 20, loop: 'pingpong'
+  });
+
+  /* ---------- 加载真实素材 spritesheet_1（FramePacker Hash .json + .png） ---------- */
+  // 直接走服务器静态路由 /assets/png（Go 已注册 r.Static("/assets", "./assets")）
+  (function loadTowerAttack() {
+    var tpStatus = document.getElementById('tpStatus');
+    var jUrl = '/assets/png/spritesheet_1.json';
+    var pUrl = '/assets/png/spritesheet_1.png';
+    player.loadTP({
+      name: 'towerAttack',
+      jsonUrl: jUrl,
+      imageUrl: pUrl,
+      order: ['001','002','003','004','005','006'],
+      fps: 18,
+      loop: 'none',
+      defaultScale: 64 / 720,   // 缩放到 1 格 ≈ 64 px（塔本体尺寸），原始 720 × 0.0889 = 64
+      anchor: { x: 0.5, y: 1.0 }  // 脚底落地：锚点在 sourceSize 底部中央
+    }).then(function (anim) {
+      // 画 ss4 预览：3×2 网格，每格放一帧等比缩放到适合预览 canvas
+      var ss4 = document.getElementById('ss4');
+      if (ss4 && anim.frames.length === 6) {
+        var sctx = ss4.getContext('2d');
+        sctx.clearRect(0, 0, ss4.width, ss4.height);
+        var perW = ss4.width / 3, perH = ss4.height / 2;
+        var sSc = Math.min(perW / 720, perH / 720);
+        for (var k = 0; k < 6; k++) {
+          var cc = k % 3, rr = Math.floor(k / 3);
+          var f = anim.frames[k];
+          // trim 为 false → f.w===720, sss.x/y===0 直接按比例缩放到格子正中
+          var dw = Math.round(f.w * sSc), dh = Math.round(f.h * sSc);
+          var ox = Math.round(cc * perW + (perW - dw) / 2);
+          var oy = Math.round(rr * perH + (perH - dh) / 2);
+          sctx.drawImage(anim.image, f.x, f.y, f.w, f.h, ox, oy, dw, dh);
+          sctx.strokeStyle = 'rgba(56,189,248,.3)';
+          sctx.lineWidth = 1;
+          sctx.strokeRect(Math.round(cc*perW), Math.round(rr*perH), Math.round(perW-1), Math.round(perH-1));
+          sctx.fillStyle = '#38bdf8';
+          sctx.font = 'bold 14px sans-serif';
+          sctx.fillText(String(k+1), cc*perW + 8, rr*perH + 20);
+        }
+      }
+      if (tpStatus) { tpStatus.textContent = '已加载 ✓'; tpStatus.className = 'pill'; }
+      afterAllLoaded();
+    }).then(null, function (err) {
+      if (tpStatus) { tpStatus.textContent = '加载失败(×): ' + String(err && err.message || err).slice(0,40); tpStatus.className = 'pill warn'; }
+      console.error('[demo] towerAttack 加载失败', err);
+      afterAllLoaded();
+    });
+    // 兜底：3 秒未响应时也启动 RAF，避免页面白屏
+    setTimeout(function () { afterAllLoaded(); }, 3000);
+  })();
+
+  // 真实素材加载完成后再启动 RAF（否则刷新 UI 时 player.anims['towerAttack'] 还没好，可能白屏）
+  var _allLoaded = false;
+  function afterAllLoaded() {
+    if (_allLoaded) return;
+    _allLoaded = true;
+    refreshUI();
+    requestAnimationFrame(function (t) { last = t; tick(t); });
+  }
+
+  /* ============================================================
+   *  UI 与主循环
+   * ============================================================ */
+  var $ = function (id) { return document.getElementById(id); };
+  var cvs = $('stage'), c = cvs.getContext('2d');
+  var hudName = $('hudName'), hudFrame = $('hudFrame'), hudFPS = $('fps'), hudInst = $('instances'), hudStatus = $('hudStatus');
+  var sel = $('animSelect'), btnPlay = $('btnPlay'), btnPause = $('btnPause'), btnStop = $('btnStop');
+  var loopSel = $('loopMode'), speed = $('speed'), speedVal = $('speedVal'),
+      frameSlider = $('frame'), frameVal = $('frameVal');
+  var kv = $('kvAnim'), jsonView = $('jsonView'), costBox = $('costBox');
+
+  // 预览模式状态：控制中央单个大预览
+  var preview = {
+    name: sel.value,
+    frame: 0,
+    playing: false,
+    t: 0,
+    loop: loopSel.value,
+    dir: 1,
+    speed: 1
+  };
+  // 调试用：暴露核心内部状态（集成测试可读取）
+  window.__demoState = {
+    get preview() { return preview; },
+    get player() { return player; },
+    get cvs() { return cvs; },
+    get ctx() { return c; },
+    get dtRing() { return dtRing.slice(); },
+    spawn: function (name, x, y, loopMode) {
+      return player.spawn(name, {
+        x: x|0, y: y|0, scale: 1, alpha: 1,
+        loop: loopMode || player.anims[name].meta.loop
+      });
+    }
+  };
+
+  function currentAnim() { return player.anims[preview.name]; }
+  function animJSON() {
+    var a = currentAnim();
+    return JSON.stringify({
+      name: a.meta.name,
+      spriteSheet: a.meta.name + '.png',
+      size: a.image.width + '×' + a.image.height,
+      frameSize: a.frames[0].w + '×' + a.frames[0].h,
+      grid: { cols: a.meta.total, rows: 1 },
+      totalFrames: a.meta.total,
+      fps: a.meta.fps,
+      durationSec: (a.frames.reduce(function(s,x){return s+x.dur},0)).toFixed(2),
+      loop: a.meta.loop,
+      frames: a.frames.map(function(f,i){return {i:i,x:f.x,y:f.y,w:f.w,h:f.h,duration:f.dur.toFixed(3)+'s'};})
+    }, null, 2);
+  }
+  function animKV() {
+    var a = currentAnim();
+    var totalDur = a.frames.reduce(function(s,x){return s+x.dur},0);
+    var singlePNGKB = Math.round(a.image.width * a.image.height * 4 / 1024 * 0.18); // PNG≈18% of raw RGBA
+    return [
+      ['动画名', '<span class="v">' + a.meta.name + '</span>'],
+      ['总帧数', '<span class="v">' + a.meta.total + ' 帧</span>'],
+      ['单帧尺寸', '<span class="v">' + a.frames[0].w + ' × ' + a.frames[0].h + ' px</span>'],
+      ['Sprite 尺寸', '<span class="v">' + a.image.width + ' × ' + a.image.height + '</span>'],
+      ['播放帧率', '<span class="v">' + a.meta.fps + ' fps</span>'],
+      ['完整时长', '<span class="v">' + totalDur.toFixed(2) + ' 秒</span>'],
+      ['循环模式', '<span class="v">' + ({none:'单次',loop:'循环',pingpong:'来回'})[a.meta.loop] + '</span>'],
+      ['预估 PNG 大小', '<span class="v">' + singlePNGKB + ' KB（有损 WebP ≈ ' + Math.round(singlePNGKB*0.4) + ' KB）</span>']
+    ].map(function(row){return '<span>'+row[0]+'</span><span class="v">'+row[1]+'</span>'}).join('');
+  }
+  function costCompare() {
+    var a = currentAnim();
+    var pngKB = Math.round(a.image.width*a.image.height*4/1024*0.18);
+    var spineFiles = 3, spineSizeKB = pngKB*1.3 + 20; // 3.8 runtime + mesh
+    return '<b>对比 1 个攻击特效的制作+集成成本：</b><br>'
+      + '🧱 <b>Spine 骨骼：</b> ' + spineFiles + ' 个文件(.skel+.atlas+.png)<br>'
+      + '&nbsp;&nbsp;美术 ≈ 120 分钟 · 集成 ≈ 60 分钟 · 运行时 CPU 重算矩阵<br>'
+      + '&nbsp;&nbsp;文件总量 ≈ <b>' + Math.round(spineSizeKB) + ' KB + 300 KB runtime</b><br><br>'
+      + '🖼 <b>序列帧（本方案）：</b> 1 个 PNG + 20 行 JSON<br>'
+      + '&nbsp;&nbsp;美术 ≈ 10 分钟 · 集成 ≈ 5 分钟 · drawImage 纯 GPU<br>'
+      + '&nbsp;&nbsp;文件总量 ≈ <b>' + pngKB + ' KB（+ 10 KB Player 代码）</b>';
+  }
+  function refreshUI() {
+    var a = currentAnim();
+    hudName.textContent = a.meta.name;
+    var n = a.meta.total;
+    frameSlider.max = n - 1;
+    frameSlider.value = preview.frame;
+    // 滑块下方数字也做 1-based 显示（与 HUD 的 frame 保持一致）
+    frameVal.textContent = (preview.frame + 1) + '/' + n;
+    speedVal.textContent = Number(preview.speed).toFixed(2) + '×';
+    hudFrame.textContent = (preview.frame + 1) + '/' + n;
+    if (preview.playing) { hudStatus.textContent='播放中'; hudStatus.className='pill'; }
+    else if (preview.frame > 0) { hudStatus.textContent='暂停'; hudStatus.className='pill warn'; }
+    else { hudStatus.textContent='停止'; hudStatus.className='pill warn'; }
+    kv.innerHTML = animKV();
+    jsonView.value = animJSON();
+    costBox.innerHTML = costCompare();
+  }
+  // Tabs
+  $('tabs').addEventListener('click', function (e) {
+    if (e.target.tagName !== 'BUTTON') return;
+    var name = e.target.getAttribute('data-tab');
+    Array.prototype.forEach.call($('tabs').children, function (b) { b.classList.toggle('on', b === e.target); });
+    $('tab-json').style.display   = name === 'json'   ? '' : 'none';
+    $('tab-api').style.display    = name === 'api'    ? '' : 'none';
+    $('tab-migrate').style.display = name === 'migrate' ? '' : 'none';
+  });
+
+  // 事件
+  sel.addEventListener('change', function () {
+    preview.name = sel.value;
+    var def = player.anims[preview.name];
+    preview.frame = 0; preview.t = 0; preview.dir = 1;
+    loopSel.value = def.meta.loop;
+    preview.loop = def.meta.loop;
+    refreshUI();
+  });
+  btnPlay.addEventListener('click', function () { preview.playing = true; preview.ended = false; preview.dir = 1; refreshUI(); });
+  btnPause.addEventListener('click', function () { preview.playing = false; refreshUI(); });
+  btnStop.addEventListener('click', function () { preview.playing = false; preview.frame = 0; preview.t = 0; preview.dir = 1; refreshUI(); });
+  loopSel.addEventListener('change', function () { preview.loop = loopSel.value; });
+  speed.addEventListener('input', function () { preview.speed = parseFloat(speed.value); refreshUI(); });
+  frameSlider.addEventListener('input', function () { preview.frame = parseInt(frameSlider.value,10); preview.playing=false; preview.t=0; refreshUI(); });
+
+  // 投放实例：大素材（towerAttack）使用 defaultScale 保证合适尺寸
+  function spawn(name, x, y) {
+    var def = player.anims[name];
+    var ds = (def && typeof def.defaultScale === 'number') ? def.defaultScale : 1;
+    var base = (ds < 0.5) ? ds : 1;        // 小图继续原 1~1.6 随机放大；大图用 defaultScale
+    var jitter = (ds < 0.5) ? 1.0 : (1 + Math.random()*0.6);
+    player.spawn(name, {
+      x: x, y: y,
+      scale: base * jitter,
+      alpha: 0.9 + 0.1*Math.random(),
+      loop: def.meta.loop,
+      onComplete: function (inst, reason) {
+        // 单次播放结束自动回收
+        if (reason === 'end') player.kill(inst);
+      }
+    });
+    syncInstHud();
+  }
+  function syncInstHud() { hudInst.textContent = player.instances().length; }
+  $('btnSpawnSw').addEventListener('click', function () { spawn('shockwave', cvs.width/2, cvs.height/2); });
+  $('btnSpawnFl').addEventListener('click', function () { spawn('flame', cvs.width/2, cvs.height/2); });
+  $('btnSpawnIc').addEventListener('click', function () { spawn('iceShard', cvs.width/2, cvs.height/2); });
+  $('btnClear').addEventListener('click', function () { player.killAll(); syncInstHud(); });
+  cvs.addEventListener('click', function (ev) {
+    var r = cvs.getBoundingClientRect();
+    var sx = cvs.width / r.width, sy = cvs.height / r.height;
+    spawn(preview.name, (ev.clientX - r.left) * sx, (ev.clientY - r.top) * sy);
+  });
+
+  // 导出 PNG 按钮（给 sprite sheet 预览加右键下载）
+  [['ss1','shockwave.png'],['ss2','flame.png'],['ss3','iceShard.png']].forEach(function(pair){
+    var el = $(pair[0]);
+    el.title = '右键「另存为…」可下载 ' + pair[1] + ' 原始 sprite sheet';
+    el.addEventListener('dblclick', function () {
+      var a = document.createElement('a');
+      a.href = el.toDataURL('image/png');
+      a.download = pair[1];
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    });
+  });
+
+  // ---------- RAF 主循环 ----------
+  var last = performance.now();
+  var fpsSm = 60, frames = 0, fpsT = 0;
+  var dtRing = [];                               // 调试：最近 N 个 dt
+  function tick(now) {
+    var rawDt = (now - last) / 1000;
+    var dt = Math.min(0.05, rawDt);
+    last = now;
+    dtRing.push({dt: dt, raw: rawDt, now: now, previewFrame: preview.frame, playing: preview.playing});
+    if (dtRing.length > 60) dtRing.shift();
+    // FPS
+    frames++; fpsT += dt;
+    if (fpsT >= 0.5) { fpsSm = Math.round(frames/fpsT); frames=0; fpsT=0; hudFPS.textContent = fpsSm; }
+
+    // 预览：按 dt 推进
+    var a = currentAnim();
+    if (preview.playing) {
+      preview.t += dt * preview.speed;
+      while (preview.t >= a.frames[preview.frame].dur) {
+        preview.t -= a.frames[preview.frame].dur;
+        if (preview.loop === 'pingpong') {
+          preview.frame += preview.dir;
+          if (preview.frame >= a.meta.total) { preview.frame = a.meta.total-2; preview.dir = -1; if (preview.frame<0) preview.frame=0; }
+          else if (preview.frame < 0) { preview.frame = 1; preview.dir = 1; preview.playing=false; }
+        } else if (preview.loop === 'loop') {
+          preview.frame = (preview.frame + 1) % a.meta.total;
+        } else {
+          preview.frame++;
+          if (preview.frame >= a.meta.total) { preview.frame = a.meta.total - 1; preview.playing = false; }
+        }
+        frameSlider.value = preview.frame;
+      }
+    }
+
+    // spawn 实例 update
+    player.update(dt);
+
+    // ---- 绘制舞台 ----
+    c.fillStyle = '#0b1222';
+    c.fillRect(0, 0, cvs.width, cvs.height);
+    // 网格
+    c.strokeStyle = 'rgba(255,255,255,0.04)';
+    c.lineWidth = 1;
+    for (var gx = 0; gx <= cvs.width; gx += 32) { c.beginPath(); c.moveTo(gx+.5,0); c.lineTo(gx+.5,cvs.height); c.stroke(); }
+    for (var gy = 0; gy <= cvs.height; gy += 32) { c.beginPath(); c.moveTo(0,gy+.5); c.lineTo(cvs.width,gy+.5); c.stroke(); }
+
+    // 参考中心十字
+    c.strokeStyle = 'rgba(56,189,248,.2)';
+    c.setLineDash([4,6]);
+    c.beginPath(); c.moveTo(cvs.width/2,0); c.lineTo(cvs.width/2,cvs.height);
+    c.moveTo(0,cvs.height/2); c.lineTo(cvs.width,cvs.height/2);
+    c.stroke(); c.setLineDash([]);
+
+    // 中心画预览：塔攻击动作(720)用 defaultScale × 1.5 保证不超出，其他用 2×
+    var ds = (typeof a.defaultScale === 'number') ? a.defaultScale : 1;
+    var pvScale = (ds < 0.5) ? (ds * 3.0) : 2;     // 大图：把 defaultScale 放大 3 倍仍在合理显示范围
+    player.draw(c, preview.name, cvs.width/2, cvs.height/2, {frame: preview.frame, scale: pvScale});
+    // 预览框（灰色圆角方框）
+    c.save();
+    c.strokeStyle = 'rgba(56,189,248,.35)';
+    c.lineWidth = 1.5;
+    var pw = a.frames[0].w * pvScale, ph = a.frames[0].h * pvScale;
+    c.strokeRect(cvs.width/2 - pw/2, cvs.height/2 - ph/2, pw, ph);
+    c.font = '12px sans-serif';
+    c.fillStyle = '#94a3b8';
+    var label = (ds < 0.5) ? ('预览 defaultScale×3 (=' + pvScale.toFixed(3) + ')') : '预览 2×';
+    c.fillText(label, cvs.width/2 - pw/2 + 8, cvs.height/2 - ph/2 - 6);
+    c.restore();
+
+    // 画 spawn 的实例（覆盖在预览上）
+    player.drawAll(c);
+
+    hudInst.textContent = player.instances().length;
+    // 统一显示：0-based frame + 1，与 refreshUI 保持一致
+    frameVal.textContent = (preview.frame + 1) + '/' + a.meta.total;
+    hudFrame.textContent = (preview.frame + 1) + '/' + a.meta.total;
+    // 同步状态 pill（preview.playing 可能在 none/pingpong 自然播放结束时被设置为 false）
+    if (preview.playing) { hudStatus.textContent = '播放中'; hudStatus.className = 'pill'; }
+    else if (preview.frame > 0) { hudStatus.textContent = '暂停'; hudStatus.className = 'pill warn'; }
+    else { hudStatus.textContent = '停止'; hudStatus.className = 'pill warn'; }
+
+    requestAnimationFrame(tick);
+  }
+
+  // 注意：初始 RAF + refreshUI 由 afterAllLoaded() 触发，等 towerAttack 加载成功（或失败）后再启动
+  // refreshUI();
+  // requestAnimationFrame(function (t) { last = t; tick(t); });
+})();
+</script>
+</body>
+</html>

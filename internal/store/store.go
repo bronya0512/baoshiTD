@@ -3,6 +3,7 @@ package store
 import (
 	"baoshiTD/internal/model"
 	"log"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -22,8 +23,20 @@ var (
 	accountSeq uint = 1
 
 	savesMu sync.RWMutex
-	saves   = make(map[uint]*model.GameSaveRecord) // key=account.ID
+	// V4-1: saves 按 (uid, mapId, difficulty) 三元分桶；key=复合字符串 "uid|mapId|difficulty"
+	saves = make(map[string]*model.GameSaveRecord)
 )
+
+// saveKey 构造 save map 的复合 key（内存版）
+func saveKey(uid uint, mapId int, difficulty string) string {
+	if mapId == 0 {
+		mapId = 1
+	}
+	if difficulty == "" {
+		difficulty = "normal"
+	}
+	return strconv.FormatUint(uint64(uid), 10) + "|" + strconv.Itoa(mapId) + "|" + difficulty
+}
 
 // ========== Accounts 路由 ==========
 
@@ -158,23 +171,23 @@ func CheckActiveSession(id uint, jti string) (ok bool, needKick bool) {
 
 // ========== Saves 路由 ==========
 
-func GetSave(uid uint) *model.GameSaveRecord {
+// GetSave 按 (uid, mapId, difficulty) 取一份存档；mapId=0/difficulty="" 视为默认 (1/normal)
+func GetSave(uid uint, mapId int, difficulty string) *model.GameSaveRecord {
 	if modeMySQL {
-		rec, err := sqlGetSave(uid)
+		rec, err := sqlGetSave(uid, mapId, difficulty)
 		if err != nil {
-			log.Printf("[store-mysql] GetSave(%d) error: %v", uid, err)
+			log.Printf("[store-mysql] GetSave(%d,%d,%q) error: %v", uid, mapId, difficulty, err)
 			return nil
 		}
 		if rec == nil {
 			return nil
 		}
-		// 返回副本（实际上 rec 已是新对象；防后续 caller 误改的语义保持）
 		cp := *rec
 		return &cp
 	}
 	savesMu.RLock()
 	defer savesMu.RUnlock()
-	rec, ok := saves[uid]
+	rec, ok := saves[saveKey(uid, mapId, difficulty)]
 	if !ok {
 		return nil
 	}
@@ -182,36 +195,50 @@ func GetSave(uid uint) *model.GameSaveRecord {
 	return &cp
 }
 
+// SetSave 按三元桶写入
 func SetSave(uid uint, rec *model.GameSaveRecord) {
+	if rec.MapId == 0 {
+		rec.MapId = 1
+	}
+	if rec.Difficulty == "" {
+		rec.Difficulty = "normal"
+	}
 	if modeMySQL {
 		if err := sqlSetSave(uid, rec); err != nil {
-			log.Printf("[store-mysql] SetSave(%d) error: %v", uid, err)
+			log.Printf("[store-mysql] SetSave(%d,%d,%q) error: %v", uid, rec.MapId, rec.Difficulty, err)
 		}
 		return
 	}
 	savesMu.Lock()
 	defer savesMu.Unlock()
-	saves[uid] = rec
+	saves[saveKey(uid, rec.MapId, rec.Difficulty)] = rec
 }
 
-// SetSaveWithCheck 乐观锁版本写入；memory 版语义不变，MySQL 版用 BEGIN + SELECT ... FOR UPDATE 防双写
+// SetSaveWithCheck 乐观锁版本写入；memory 版语义不变
 func SetSaveWithCheck(uid uint, rec *model.GameSaveRecord, expectUpdatedAt time.Time, expectZero bool) (ok bool, conflict bool, serverUpdatedAt time.Time) {
+	if rec.MapId == 0 {
+		rec.MapId = 1
+	}
+	if rec.Difficulty == "" {
+		rec.Difficulty = "normal"
+	}
 	if modeMySQL {
 		return sqlSetSaveWithCheck(uid, rec, expectUpdatedAt, expectZero)
 	}
 	// memory 版
 	savesMu.Lock()
 	defer savesMu.Unlock()
-	existing, has := saves[uid]
+	key := saveKey(uid, rec.MapId, rec.Difficulty)
+	existing, has := saves[key]
 	if expectZero {
 		if has {
 			return false, true, existing.UpdatedAt
 		}
-		saves[uid] = rec
+		saves[key] = rec
 		return true, false, rec.UpdatedAt
 	}
 	if expectUpdatedAt.IsZero() {
-		saves[uid] = rec
+		saves[key] = rec
 		return true, false, rec.UpdatedAt
 	}
 	if !has {
@@ -220,6 +247,6 @@ func SetSaveWithCheck(uid uint, rec *model.GameSaveRecord, expectUpdatedAt time.
 	if !sameMs(existing.UpdatedAt, expectUpdatedAt) {
 		return false, true, existing.UpdatedAt
 	}
-	saves[uid] = rec
+	saves[key] = rec
 	return true, false, rec.UpdatedAt
 }

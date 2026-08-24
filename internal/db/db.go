@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"strconv"
 	"time"
 
@@ -21,9 +20,9 @@ type RedisHolder struct {
 // ConnectRedis 读 TD_REDIS_ADDR / TD_REDIS_PWD / TD_REDIS_DB；空表示"请求走内存"返回 (nil, nil)
 // 失败返回 err，由上层决定 fallback
 func ConnectRedis() (*RedisHolder, error) {
-	addr := os.Getenv("TD_REDIS_ADDR")
-	pwd := os.Getenv("TD_REDIS_PWD")
-	dbi, _ := strconv.Atoi(os.Getenv("TD_REDIS_DB"))
+	addr := getEnv("TD_REDIS_ADDR")
+	pwd := getEnv("TD_REDIS_PWD")
+	dbi, _ := strconv.Atoi(getEnv("TD_REDIS_DB"))
 	if addr == "" {
 		return nil, nil
 	}

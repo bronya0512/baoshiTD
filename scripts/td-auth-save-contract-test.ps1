@@ -1,13 +1,14 @@
 # ============================================================
-# td-auth-save-contract-test.ps1  V3-1 契约测试
+# td-auth-save-contract-test.ps1  V3-2 契约测试
 # 覆盖: register / login / JWT / save(GET+POST) / 防作弊门 / autosave字段
-# 断言数: 22
+#      Boss 契约: enemy6=BOSS·炎狱领主  wave3/6/8=Boss波 + rewardGold阶梯
+# 断言数: 32
 # ============================================================
 $ErrorActionPreference = 'Stop'
 $BASE = 'http://localhost:8080'
 $PASS = 0
 $FAIL = 0
-$TOTAL = 23
+$TOTAL = 24
 $SFX = [string](Get-Date -Format 'yyyyMMdd-HHmmss')
 Set-Variable -Name SFX -Value $SFX -Scope Script -Option ReadOnly
 $TEST_USER = ('testuser_' + $SFX)
@@ -201,6 +202,23 @@ if ($r.status -eq 200) {
     Assert-True "3.14 新用户save gold!=42(非他人存档) 实际gold=$goldF" ($goldF -ne 42)
 } else {
     $script:PASS++; Write-Host "[PASS $PASS/$TOTAL] 3.14 新用户404视为跳过" -ForegroundColor Green
+}
+
+# ============ 4. Config Boss 契约 (V3-2) — 调用独立脚本 ============
+# PS5.1 解析嵌套字符串插值很脆弱，为了保持 V3-1 主套件稳定，Boss 契约拆到同级独立脚本 td-boss-contract-test.ps1
+$bossScript = Join-Path $PSScriptRoot 'td-boss-contract-test.ps1'
+if (Test-Path $bossScript) {
+    & powershell -ExecutionPolicy Bypass -NonInteractive -File $bossScript
+    if ($LASTEXITCODE -ne 0) {
+        $script:FAIL++; $script:TOTAL++
+        Write-Host "[FAIL $FAIL/$TOTAL] 4.* Boss 契约子脚本 exit=$LASTEXITCODE" -ForegroundColor Red
+    } else {
+        $script:PASS++; $script:TOTAL++
+        Write-Host "[PASS $PASS/$TOTAL] 4.* Boss 契约子脚本 exit=0" -ForegroundColor Green
+    }
+} else {
+    $script:FAIL++; $script:TOTAL++
+    Write-Host "[FAIL $FAIL/$TOTAL] 4.* 缺失 td-boss-contract-test.ps1 (期望在 $bossScript)" -ForegroundColor Red
 }
 
 # ============ 汇总 ============

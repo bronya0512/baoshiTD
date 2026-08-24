@@ -239,6 +239,18 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 }
 .center-start:hover { filter: brightness(1.08); }
 .center-start:active { transform: translate(-50%, -50%) scale(0.98); }
+
+/* ===== 移动端：中央"开始本波"大按钮挡住画布触摸热区，玩家点空地放塔时极易误触按钮
+   → 强制提前进入 RESERVE（无法继续放满 5 次）。手机/触屏改为贴画布底部的小按钮 ===== */
+@media (max-width: 600px), (pointer: coarse) {
+  .center-start {
+    left: 50%; top: auto; bottom: 6px;
+    transform: translateX(-50%);
+    min-width: auto; padding: 8px 18px;
+    font-size: 14px; border-radius: 12px;
+  }
+  .center-start:active { transform: translateX(-50%) scale(0.97); }
+}
 @keyframes centerStartPulse {
   0%, 100% { box-shadow: 0 10px 30px rgba(2,132,199,.5), inset 0 1px 0 rgba(255,255,255,.2); }
   50%      { box-shadow: 0 10px 40px rgba(14,165,233,.8), 0 0 24px rgba(56,189,248,.5), inset 0 1px 0 rgba(255,255,255,.25); }

@@ -5914,7 +5914,8 @@
         _cv.addEventListener('touchmove', function (e) {
           if (_tapX == null || !e.touches || e.touches.length !== 1) { _moved = true; return; }
           var t = e.touches[0];
-          if (Math.abs(t.clientX - _tapX) > 10 || Math.abs(t.clientY - _tapY) > 10) _moved = true;
+          // 阈值 25px：电容屏手指微抖 10-20px 很常见，过小会把有效 tap 误判为滑动 → 合成 click 被吞（手机端"点了没反应"）
+          if (Math.abs(t.clientX - _tapX) > 25 || Math.abs(t.clientY - _tapY) > 25) _moved = true;
         }, { passive: true });
         _cv.addEventListener('touchend', function (e) {
           if (_tapX == null || _moved) { _tapX = null; _tapY = null; return; }

@@ -48,3 +48,6 @@ temp/
 *.zip
 assets/spine/mrfz/
 assets/spine/waifu2x-caffe  Ps/
+
+# Playwright CLI test scripts
+.playwright-cli/

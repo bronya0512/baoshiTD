@@ -2,6 +2,9 @@
 # 注意：multi-stage，Go builder + 运行期用 scratch/alpine 可保持镜像 < 50MB
 FROM golang:1.25-alpine AS builder
 
+# 国内网络访问 proxy.golang.org 会超时，使用七牛镜像加速依赖下载
+ENV GOPROXY=https://goproxy.cn,direct
+
 WORKDIR /app
 
 # 先复制 go.mod / go.sum 以便缓存 go mod download

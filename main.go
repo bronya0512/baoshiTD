@@ -189,7 +189,10 @@ func main() {
 
 	r := router.Setup()
 
-	port := ":8080"
+	port := ":" + os.Getenv("TD_PORT")
+	if port == ":" {
+		port = ":8080" // 默认 8080，可用环境变量 TD_PORT 覆盖（与 Dockerfile/compose 声明一致）
+	}
 	// Use log.Printf (NOT fmt.Printf) so startup banner is written into the
 	// date-stamped log file as well -- otherwise only stdout sees it.
 	log.Println("============================================================")

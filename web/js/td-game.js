@@ -84,36 +84,28 @@
     var isOpen = d && d.classList.contains('open');
     if (isOpen) closeMenuDrawer(); else openMenuDrawer();
   }
-  // V4-7：按当前 PHASE 刷新"画面中央开始本波"按钮 + mini phase bar 显隐
+  // V4-11：按当前 PHASE 刷新右上角"开始(▶)"小按钮 + mini phase bar 显隐
+  // PREPARE 不显示开始按钮（保留/合成走塔详情弹窗）；MENU=开局，WIN/LOSE=再来一局
   function refreshCenterStartAndMiniBar() {
     var startBtn = document.getElementById('btn-start-wave');
-    var waveNum  = document.getElementById('center-wave-num');
     var miniBar  = document.getElementById('mini-bar');
     var ph = state.phase;
-    var show = false;
-    if (startBtn && waveNum) {
-      if (ph === PHASE.MENU) {
-        startBtn.innerHTML = '▶ 开始第 <span id="center-wave-num">1</span> 波';
-        // innerHTML 重写后 waveNum 引用失效，重新 grab
-        waveNum = document.getElementById('center-wave-num');
-        if (waveNum) waveNum.textContent = String((Number(state.waveIndex) || 0) + 1);
-        show = true;
-      } else if (ph === PHASE.PREPARE) {
-        startBtn.innerHTML = '▶ 开始第 <span id="center-wave-num">' + String(state.waveIndex) + '</span> 波';
-        waveNum = document.getElementById('center-wave-num');
-        // 放置过至少 1 次才显示开始按钮（对应 btnStartClick 里 placementUsed===0 的门槛），否则先引导放置
-        if ((Number(state.placementUsed) || 0) > 0) show = true;
-        else show = false;
-      } else if (ph === PHASE.WIN || ph === PHASE.LOSE) {
-        // 结局：中央开始按钮变成"再玩一次"
-        var txt = (ph === PHASE.WIN) ? '🏆 通关！再来一局' : '💥 失败，再玩一次';
-        startBtn.innerHTML = '<span id="center-wave-num" style="display:none">1</span>' + txt;
-        waveNum = document.getElementById('center-wave-num');
-        if (waveNum) waveNum.textContent = '1';
-        show = true;
-      } else {
-        show = false;
-      }
+    var show = false, title = '开始';
+    if (ph === PHASE.MENU) {
+      title = '开始第 ' + ((Number(state.waveIndex) || 0) + 1) + ' 波';
+      show = true;
+    } else if (ph === PHASE.PREPARE) {
+      show = false;
+    } else if (ph === PHASE.WIN) {
+      title = '🏆 通关！点击再来一局';
+      show = true;
+    } else if (ph === PHASE.LOSE) {
+      title = '💥 失败，点击重开';
+      show = true;
+    }
+    if (startBtn) {
+      startBtn.textContent = '▶';
+      startBtn.title = title;
       if (show) startBtn.classList.remove('hidden');
       else startBtn.classList.add('hidden');
     }
@@ -1182,7 +1174,7 @@
     configCellSize: 0,     // 配置原始 cellSize（当前作为 "不要过度放大" 的参考上限 3x 内）
     // ===== v4: 塔合成系统 =====
     merge: {
-      mode: null,             // null | 'upgrade' (A) | 'fusion' (B) | 'evolve' (C)
+      mode: null,             // null | 'fusion' (B) | 'evolve' (C) —— V4-11 A 升级已下线
       selected: [],           // gridIdx[]，按点击顺序；最后一个 = 合成后产物落点
       activeRecipeId: null,   // evolve 模式下当前激活配方（若被用户在 ribbon 点选，则锁定）
       lastPreview: null       // 最近一次成功的校验缓存（打开 modal 时复用）
@@ -1753,10 +1745,11 @@
   }
 
   function rarityCssColor(r) {
-    return ({common:'#e2e8f0',rare:'#60a5fa',epic:'#a78bfa',legendary:'#fbbf24'})[r] || '#e2e8f0';
+    // V4-10：6 档稀有度（新增神话 mythic / 至臻 ultimate）
+    return ({common:'#e2e8f0',rare:'#60a5fa',epic:'#a78bfa',legendary:'#fbbf24',mythic:'#f472b6',ultimate:'#f87171'})[r] || '#e2e8f0';
   }
   function rarityShort(r) {
-    return ({common:'普',rare:'稀',epic:'史',legendary:'传'})[r] || '?';
+    return ({common:'普',rare:'稀',epic:'史',legendary:'传',mythic:'神',ultimate:'至'})[r] || '?';
   }
 
   function drawEnemies() {
@@ -2129,7 +2122,8 @@
 
   // ---------- HUD ----------
   function rarityLabel(r) {
-    return ({common:'普通',rare:'稀有',epic:'史诗',legendary:'传说'})[r] || r;
+    // V4-10：6 档稀有度（新增神话 mythic / 至臻 ultimate）
+    return ({common:'普通',rare:'稀有',epic:'史诗',legendary:'传说',mythic:'神话',ultimate:'至臻'})[r] || r;
   }
 
   function refreshHUD() {
@@ -2196,7 +2190,8 @@
     if (state.phase === PHASE.PREPARE) {
       var left = state.placementTotal - state.placementUsed;
       if (currentWaveBoss) extras.push('<span class="chip hot">★BOSS 波</span>');
-      extras.push('<span class="chip hot">放置剩余 ' + left + ' / ' + state.placementTotal + '</span>');
+      if (left > 0) extras.push('<span class="chip hot">放置剩余 ' + left + ' / ' + state.placementTotal + '</span>');
+      else extras.push('<span class="chip hot">点塔详情：保留 / 合成 / 进化</span>');
       extras.push('<span class="chip ok">运气 ' + state.luckLevel + '</span>');
     } else if (state.phase === PHASE.BATTLE) {
       var alive = 0;
@@ -2250,22 +2245,24 @@
   // ---------- terrain ops (gate-wrapped) ----------
   function placeCandidate(gx, gy) {
     if (state.phase !== PHASE.PREPARE) return { ok: false, msg: '当前阶段不可放置' };
-    if (state.placementUsed >= state.placementTotal) return { ok: false, msg: '本波放置机会已用完，请选择保留塔' };
+    if (state.placementUsed >= state.placementTotal) return { ok: false, msg: '已放满 5 塔：点击防御塔，在详情中选择「保留」或「合成 / 进化」' };
     var t = tileAt(gx, gy);
     if (!tileIsPlaceable(t)) return { ok: false, msg: '该位置不可放置（只能放在空地或墙上）' };
     var towerCfg = state.cfg.rollTowerByLuck(state.luckLevel);
     if (!towerCfg) return { ok: false, msg: '配置错误：无法 Roll 塔' };
+    // V4-10：Roll 出"宝石类型 + 实例稀有度"，数值取 levels[rarityIdx]
+    var rolledRarity = towerCfg._rollRarity || towerCfg.rarity || 'common';
     var prevTile = t;
     var prevGrid = state.grid[idx(gx, gy)] || null;
     var instId = state.nextInstId++;
-    var gridObj = { type: T_CAND, instId: instId, towerCfgId: towerCfg.id, rarity: towerCfg.rarity, towerCfg: towerCfg, cooldown: 0, damageDealt: 0, kills: 0, energy: 0, skillReady: false, skillActive: false };
+    var gridObj = { type: T_CAND, instId: instId, towerCfgId: towerCfg.id, rarity: rolledRarity, towerCfg: towerCfg, cooldown: 0, damageDealt: 0, kills: 0, energy: 0, skillReady: false, skillActive: false };
     var res = terrainGate({ kind: 'place', gx: gx, gy: gy, newTile: T_CAND, gridObj: gridObj });
     if (!res.ok) return res;
     state.towersByInst[instId] = gridObj;
-    state.candidates.push({ gx: gx, gy: gy, instId: instId, towerCfg: towerCfg });
+    state.candidates.push({ gx: gx, gy: gy, instId: instId, towerCfg: towerCfg, rarity: rolledRarity });
     state.placementUsed++;
-    log('s', '放置#' + state.placementUsed + ' Roll出 ' + rarityLabel(towerCfg.rarity) + ' ' + towerCfg.name + ' 于 (' + gx + ',' + gy + ')');
-    setMsg('已 Roll 出 [' + rarityLabel(towerCfg.rarity) + '] ' + towerCfg.name + '。不能撤销。');
+    log('s', '放置#' + state.placementUsed + ' Roll出 ' + rarityLabel(rolledRarity) + ' ' + towerCfg.name + ' 于 (' + gx + ',' + gy + ')');
+    setMsg('已 Roll 出 [' + rarityLabel(rolledRarity) + '] ' + towerCfg.name + '。不能撤销。');
     return { ok: true };
   }
 
@@ -2280,7 +2277,10 @@
   }
 
   function reserveOne(instId) {
-    if (state.phase !== PHASE.RESERVE) return { ok: false, msg: '当前阶段不需要保留' };
+    // V4-11：保留入口移到塔详情弹窗 —— PREPARE 放满 5 塔后即可保留（不再经过 RESERVE 弹窗）
+    var canReserveNow = (state.phase === PHASE.RESERVE)
+      || (state.phase === PHASE.PREPARE && state.placementUsed >= state.placementTotal);
+    if (!canReserveNow) return { ok: false, msg: '放满 5 塔后才能在塔详情中保留' };
     var found = null;
     for (var i = 0; i < state.candidates.length; i++) if (state.candidates[i].instId === instId) { found = state.candidates[i]; break; }
     if (!found) return { ok: false, msg: '候选塔不存在' };
@@ -2304,7 +2304,7 @@
       var oldGrid = state.grid[idx(c.gx, c.gy)];
       if (c.instId === instId) {
         // 保留 → T_TOWER
-        var newGridObj = { type: T_TOWER, instId: c.instId, towerCfgId: c.towerCfg.id, rarity: c.towerCfg.rarity, towerCfg: c.towerCfg, level: 0, rollEffect: null, cooldown: 0, targetStrategy: TOWER_STRATEGIES.NEAR, damageDealt: 0, kills: 0, energy: 0, skillReady: false, skillActive: false };
+        var newGridObj = { type: T_TOWER, instId: c.instId, towerCfgId: c.towerCfg.id, rarity: (c.rarity || c.towerCfg.rarity), towerCfg: c.towerCfg, level: 0, rollEffect: null, cooldown: 0, targetStrategy: TOWER_STRATEGIES.NEAR, damageDealt: 0, kills: 0, energy: 0, skillReady: false, skillActive: false };
         var r1 = terrainGate({ kind: 'reserve_tower', gx: c.gx, gy: c.gy, newTile: T_TOWER, gridObj: newGridObj });
         if (!r1.ok) { undoAll(); return r1; }
         state.towersByInst[c.instId] = newGridObj;
@@ -2326,6 +2326,7 @@
     state.phase = PHASE.BATTLE;
     startBattleForWave(state.waveIndex);
     hideReserveModal();
+    closeTowerInfoModal();
     setMsg('战斗开始！');
     refreshHUD();
     draw();
@@ -2399,10 +2400,88 @@
     return out;
   }
 
+  // ===== V4-11 塔详情操作按钮可用性判定 =====
+  // 合成窗口：PREPARE 且已放满 5 塔、尚未保留
+  function _mergeWindowOpen() {
+    return (state.phase === PHASE.PREPARE && state.placementUsed >= state.placementTotal);
+  }
+  // 可作为合成/进化材料的池：真塔 + 本波候选塔（仅合成窗口内）
+  function _mergeSelectablePool() {
+    var out = [];
+    var candOk = _mergeWindowOpen();
+    for (var i = 0; i < state.tiles.length; i++) {
+      var tt = state.tiles[i];
+      if (tt !== T_TOWER && !(tt === T_CAND && candOk)) continue;
+      var g = state.grid[i];
+      if (!g || !g.towerCfg) continue;
+      out.push({ i: i, cfg: g.towerCfg, gridObj: g });
+    }
+    return out;
+  }
+  // B 合成可用：本塔 + 另 2 座「同稀有度·不同类型」非特殊塔（与 _validateFusion 规则一致）
+  function _canFusionFrom(gridIdx) {
+    if (!_mergeWindowOpen()) return false;
+    var g = state.grid[gridIdx];
+    if (!g || !g.towerCfg || g.towerCfg.special) return false;
+    var r = g.rarity || g.towerCfg.rarity;
+    if (!(state.cfg && state.cfg.nextRarityUp && state.cfg.nextRarityUp(r))) return false; // 至臻无法再合成
+    var pool = _mergeSelectablePool();
+    var seenIds = {}, cnt = 0;
+    for (var k = 0; k < pool.length; k++) {
+      var p = pool[k];
+      if (p.i === gridIdx) continue;
+      if (p.cfg.special) continue;
+      var pr = (p.gridObj && p.gridObj.rarity) || p.cfg.rarity;
+      if (pr !== r) continue;
+      if (p.cfg.id === g.towerCfg.id || seenIds[p.cfg.id]) continue;
+      seenIds[p.cfg.id] = true;
+      cnt++;
+      if (cnt >= 2) return true;
+    }
+    return false;
+  }
+  // C 进化可用：存在配方，使本塔可作为材料之一且其余材料可从池中凑齐
+  function _canEvolveFrom(gridIdx) {
+    if (!_mergeWindowOpen()) return false;
+    var g = state.grid[gridIdx];
+    if (!g || !g.towerCfg) return false;
+    var pool = _mergeSelectablePool();
+    var anchor = null;
+    for (var k = 0; k < pool.length; k++) if (pool[k].i === gridIdx) { anchor = pool[k]; break; }
+    if (!anchor) return false;
+    var recipes = (state.cfg && state.cfg.recipes) || [];
+    for (var r = 0; r < recipes.length; r++) {
+      var rec = recipes[r];
+      if (!rec || !rec.inputs || !rec.inputs.length) continue;
+      if (_recipeSatisfiableWithAnchor(rec, pool, anchor)) return true;
+    }
+    return false;
+  }
+  // 强制 anchor 参与的配方可满足性检测：anchor + 从 others 中枚举 need-1 个组合
+  function _recipeSatisfiableWithAnchor(recipe, pool, anchor) {
+    var need = (recipe.inputs || []).length;
+    if (need < 1) return false;
+    var others = [];
+    for (var i = 0; i < pool.length; i++) if (pool[i].i !== anchor.i) others.push(pool[i]);
+    if (others.length < need - 1) return false;
+    var picks = [anchor];
+    return _combineWith(recipe, others, 0, picks, 1, need);
+  }
+  function _combineWith(recipe, pool, start, picks, depth, need) {
+    if (depth === need) return _recipeMatchSelection(recipe, picks);
+    for (var i = start; i <= pool.length - (need - depth); i++) {
+      picks.push(pool[i]);
+      if (_combineWith(recipe, pool, i + 1, picks, depth + 1, need)) return true;
+      picks.pop();
+    }
+    return false;
+  }
+
+
   // ----- 模式切换 + 按钮高光刷新 -----
   function _refreshMergeButtons() {
     var m = state.merge;
-    var modes = ['upgrade', 'fusion', 'evolve'];
+    var modes = ['fusion', 'evolve'];
     for (var i = 0; i < modes.length; i++) {
       var btn = document.querySelector('.btn.merge[data-merge="' + modes[i] + '"]');
       if (!btn) continue;
@@ -2579,10 +2658,10 @@
   }
 
   function setMergeMode(mode) {
-    // 阶段门禁：仅 PREPARE 允许（BATTLE 塔布局冻结，不能改）
-    if (state.phase !== PHASE.PREPARE) {
-      toast('仅准备阶段可合成/升级/进化', 'er');
-      setMsg('合成系统仅在 PREPARE 阶段可用。当前：' + state.phase, true);
+    // V4-11 阶段门禁：仅 PREPARE + 放满 5 塔 + 未保留（升级 A 类已下线，只剩 合成 B / 进化 C）
+    if (state.phase !== PHASE.PREPARE || state.placementUsed < state.placementTotal) {
+      toast('放满 5 塔、保留之前才能合成 / 进化', 'er');
+      setMsg('合成 / 进化在「放满 5 塔后、保留前」可用：点击防御塔详情操作。当前：' + state.phase, true);
       return;
     }
     // 切换到新模式（点击同按钮 = 取消）
@@ -2597,9 +2676,8 @@
       state.merge.activeRecipeId = null;
     }
     var tips = {
-      upgrade: '【A 升级】请点击 2 座「同类型·同稀有度」的非特殊真塔 → 预览弹窗确认。',
-      fusion:  '【B 合成】请点击 3 座「不同类型·同稀有度」的非特殊真塔 → 预览弹窗确认（产物为更高稀有度随机类型）。',
-      evolve:  '【C 进化】顶部配方条已显示可用进化配方。请点击 3 座符合配方的真塔（部分配方允许特殊塔作为材料）→ 预览弹窗确认。'
+      fusion:  '【B 合成】请点击 3 座「不同类型·同稀有度」的非特殊塔（本波候选塔可选）→ 预览弹窗确认（产物为更高稀有度随机类型）。',
+      evolve:  '【C 进化】顶部配方条已显示可用进化配方。请点击 3 座符合配方的塔（本波候选塔可选）→ 预览弹窗确认。'
     };
     setMsg(tips[mode] || '');
     log('i', '进入合成模式: ' + mode);
@@ -2636,7 +2714,6 @@
 
   // ----- 选塔（toggle）+ 数量达到阈值 → 自动打开预览 modal -----
   function _requiredCountForMode(mode) {
-    if (mode === 'upgrade') return 2;
     if (mode === 'fusion')  return 3;
     if (mode === 'evolve')  return 3;
     return 0;
@@ -2644,7 +2721,9 @@
 
   function toggleSelectTower(gridIdx) {
     if (!state.merge.mode) return;
-    if (state.tiles[gridIdx] !== T_TOWER) { toast('只能选择真塔进行合成', 'er'); return; }
+    var tt = state.tiles[gridIdx];
+    // V4-11：放满未保留窗口内，本波候选塔（T_CAND）也允许作为合成/进化材料
+    if (tt !== T_TOWER && tt !== T_CAND) { toast('只能选择防御塔进行合成', 'er'); return; }
     var g = state.grid[gridIdx];
     if (!g || !g.towerCfg) return;
     // 已经选中 → 取消
@@ -2659,11 +2738,11 @@
       toast('已选满 ' + req + ' 座，请在弹窗确认或取消。', 'info');
       return;
     }
-    // 加入选中 → 立刻做部分校验（A/B 禁止 special；若模式不合法立即提示）
+    // 加入选中 → 立刻做部分校验（B 禁止 special；若模式不合法立即提示）
     var cfg = g.towerCfg;
     var mm = state.merge.mode;
-    if ((mm === 'upgrade' || mm === 'fusion') && cfg.special) {
-      toast(mm === 'upgrade' ? '升级模式不支持特殊塔，请走 C 进化合成特殊塔链。' : '合成模式不支持特殊塔，请走 C 进化合成特殊塔链。', 'er');
+    if (mm === 'fusion' && cfg.special) {
+      toast('合成模式不支持特殊塔，请走 C 进化合成特殊塔链。', 'er');
       return;
     }
     state.merge.selected.push(gridIdx);
@@ -2684,53 +2763,15 @@
     }
   }
 
-  // ----- 三种模式校验 + 构造 preview 对象 -----
+  // ----- 两种模式校验 + 构造 preview 对象（V4-11：A 升级已下线） -----
   function validateAndBuildPreview() {
     try {
-      if (state.merge.mode === 'upgrade') return _validateUpgrade();
       if (state.merge.mode === 'fusion')  return _validateFusion();
       if (state.merge.mode === 'evolve')  return _validateEvolve();
     } catch (e) {
       return { ok: false, msg: '合成校验异常: ' + ((e && e.message) || String(e)) };
     }
     return { ok: false, msg: '未进入合成模式' };
-  }
-
-  // A: 2 塔同 cfgId & 同 rarity & !special → 下一稀有度同类型塔
-  function _validateUpgrade() {
-    var sel = state.merge.selected;
-    if (sel.length !== 2) return { ok: false, msg: '升级需要 2 座塔' };
-    var a = state.grid[sel[0]], b = state.grid[sel[1]];
-    if (!a || !b || !a.towerCfg || !b.towerCfg) return { ok: false, msg: '选中塔数据缺失' };
-    if (a.towerCfg.special || b.towerCfg.special) return { ok: false, msg: 'A 升级：不能使用特殊塔（特殊塔仅用于 C 进化）。' };
-    if (a.towerCfg.id !== b.towerCfg.id) return { ok: false, msg: 'A 升级：必须是 2 座相同类型的塔（id 相同）。' };
-    if (a.rarity !== b.rarity) return { ok: false, msg: 'A 升级：必须同稀有度。' };
-    var baseRarity = a.rarity || a.towerCfg.rarity;
-    var nextRar = state.cfg.nextRarityUp(baseRarity);
-    if (!nextRar) return { ok: false, msg: 'A 升级：当前塔已是传奇，无法再升级。请改用 B/C 合成。' };
-    // 产物：towerCfg 不变（同 id），仅把 rarity 提到 nextRar
-    var outCfg = Object.assign({}, a.towerCfg, { rarity: nextRar });
-    var inputs = sel.map(function (i) { return _buildInputCard(i); });
-    return {
-      ok: true,
-      preview: {
-        mode: 'upgrade',
-        title: '升级（A 类）确认',
-        sub: '同类型 × 2 → 稀有度 +1，塔位置 = 第 2 座素材塔处',
-        inputs: inputs,
-        outputCard: _buildOutputCardFromCfg(outCfg, { showRarity: true }),
-        outputDesc: '产物：' + rarityLabel(nextRar) + ' ' + (outCfg.name || ''),
-        placeAt: sel[1],
-        // 执行时用到的核心信息
-        _exec: {
-          kind: 'upgrade',
-          materialIdx: [sel[0], sel[1]],
-          placeAt: sel[1],
-          outputCfgId: a.towerCfg.id,
-          outputRarity: nextRar
-        }
-      }
-    };
   }
 
   // B: 3 塔同 rarity，3 个不同 towerCfgId，!special → 下一稀有度随机非特殊塔（预览只显示稀有度）
@@ -2750,7 +2791,7 @@
     if (rk.length !== 1) return { ok: false, msg: 'B 合成：必须 3 座 同稀有度 的塔。' };
     var baseRar = rk[0];
     var nextRar = state.cfg.nextRarityUp(baseRar);
-    if (!nextRar) return { ok: false, msg: 'B 合成：传奇稀有度无法再提升，请改用 C 进化合成传奇特殊塔。' };
+    if (!nextRar) return { ok: false, msg: 'B 合成：至臻（ultimate）稀有度无法再提升。' };
     // 预览时就预先 Roll 一个具体塔，供 modal 点击确认时直接使用（保证预览=实际产物，避免玩家"取消重选"刷稀有）
     var preRolled = state.cfg.pickRandomNonSpecialByRarity(nextRar);
     if (!preRolled) return { ok: false, msg: 'B 合成：下一稀有度(' + nextRar + ')无可用塔。' };
@@ -2784,12 +2825,12 @@
     if (sel.length !== 3) return { ok: false, msg: '进化需要 3 座塔' };
     var recipes = state.cfg.recipes || [];
     if (!recipes.length) return { ok: false, msg: '当前配置无进化配方。' };
-    // 构造选中的 cfg 列表（按 gridIdx）
+    // 构造选中的 cfg 列表（按 gridIdx；V4-11 携带 gridObj → 稀有度匹配用实例稀有度，与本波候选塔 rolled 稀有度一致）
     var selCfgs = [];
     for (var s = 0; s < sel.length; s++) {
       var gg = state.grid[sel[s]];
       if (!gg || !gg.towerCfg) return { ok: false, msg: '选中塔数据缺失' };
-      selCfgs.push({ i: sel[s], cfg: gg.towerCfg });
+      selCfgs.push({ i: sel[s], cfg: gg.towerCfg, gridObj: gg });
     }
     var tryList = recipes;
     if (state.merge.activeRecipeId) {
@@ -2893,10 +2934,12 @@
     var cfg = g && g.towerCfg;
     if (!cfg) return '';
     var gx = gridIdx % state.cols, gy = Math.floor(gridIdx / state.cols);
-    return '<div class="merge-card r-' + (cfg.rarity || 'common') + (cfg.special ? ' spec' : '') + '">'
+    // V4-11：稀有度优先用实例稀有度（候选塔 rolled / 合成后塔的 gridObj.rarity）
+    var inRar = (g && g.rarity) || cfg.rarity || 'common';
+    return '<div class="merge-card r-' + inRar + (cfg.special ? ' spec' : '') + '">'
       + '<div class="mc-swatch" style="background:' + (cfg.color || '#999') + '"></div>'
       + '<div class="mc-name">' + (cfg.special ? '★ ' : '') + (cfg.name || '') + '</div>'
-      + '<div class="mc-meta">' + rarityLabel(cfg.rarity) + ' · ' + elementLabel(cfg.element) + '</div>'
+      + '<div class="mc-meta">' + rarityLabel(inRar) + ' · ' + elementLabel(cfg.element) + '</div>'
       + '<div class="mc-pos">(' + gx + ',' + gy + ')</div>'
       + '</div>';
   }
@@ -2954,9 +2997,7 @@
       }
     }
     if (confirmBtn) {
-      confirmBtn.textContent = (preview.mode === 'evolve') ? '确认进化'
-                            : (preview.mode === 'fusion') ? '确认合成'
-                            : '确认升级';
+      confirmBtn.textContent = (preview.mode === 'evolve') ? '确认进化' : '确认合成';
     }
     document.getElementById('merge-modal').classList.remove('hidden');
   }
@@ -2982,14 +3023,12 @@
     var removeIdx = (ex.materialIdx || []).slice();
     var placeIdx  = Number(ex.placeAt) | 0;
     if (!removeIdx.length) return;
-    // 2) 获取产物 cfg（按合成方式）
+    // 2) 获取产物 cfg（按合成方式；V4-11 A 升级已下线）
     var newCfg = null, newRarity = null;
-    if (ex.kind === 'upgrade') {
-      newCfg = state.cfg.towersById[Number(ex.outputCfgId)];
-      newRarity = ex.outputRarity;
-    } else if (ex.kind === 'fusion') {
+    if (ex.kind === 'fusion') {
       newCfg = ex.preRolledCfg || null;
-      if (newCfg) newRarity = newCfg.rarity || ex.outputRarity;
+      // V4-10：稀有度是实例属性，产物稀有度 = 下一稀有度（outputRarity），不能用 cfg 基础稀有度
+      if (newCfg) newRarity = ex.outputRarity || newCfg.rarity;
     } else if (ex.kind === 'evolve') {
       newCfg = (state.cfg.specialTowersById && state.cfg.specialTowersById[ex.outputCfgId])
             || (state.cfg.towersById && state.cfg.towersById[ex.outputCfgId]);
@@ -3031,7 +3070,7 @@
     state.towersByInst[instId] = newGridObj;
 
     // 5) 日志 + toast + 清理合成状态
-    var kindLabel = { upgrade: '【A 升级】', fusion: '【B 合成】', evolve: '【C 进化】' }[ex.kind] || '';
+    var kindLabel = { fusion: '【B 合成】', evolve: '【C 进化】' }[ex.kind] || '';
     var logMsg = kindLabel + '成功：'
       + '产物 [' + rarityLabel(newRarity || newCfg.rarity) + '] ' + newCfg.name
       + (newCfg.special ? ' (★特殊塔)' : '')
@@ -3042,6 +3081,7 @@
 
     // 6) 重置合成状态 + 刷新 UI
     closeMergeModal();
+    closeTowerInfoModal();
     state.merge.mode = null;
     state.merge.selected = [];
     state.merge.lastPreview = null;
@@ -3050,8 +3090,40 @@
     detectEvolvable();
     renderEvolveRibbon(false);
     _refreshMergeButtons();
+
+    // 7) V4-11：放满未保留窗口内合成/进化 → 其余本波候选塔全部变墙，合成产物即本波保留塔，直接开战
+    if (state.phase === PHASE.PREPARE && state.placementUsed >= state.placementTotal && state.candidates.length > 0) {
+      _resolveRemainingCandidatesToWalls();
+      state.phase = PHASE.BATTLE;
+      startBattleForWave(state.waveIndex);
+      setMsg('合成进化完成，其余本波塔已变墙，战斗开始！');
+    }
     refreshHUD();
     draw();
+  }
+
+  // V4-11：把本波剩余候选塔（T_CAND）全部变墙；若变墙会封路则退化为草地（保证路径可走）
+  function _resolveRemainingCandidatesToWalls() {
+    var walled = 0, grassed = 0;
+    for (var j = 0; j < state.candidates.length; j++) {
+      var c = state.candidates[j];
+      var ci = idx(c.gx, c.gy);
+      if (state.tiles[ci] !== T_CAND) continue;
+      var oldG = state.grid[ci];
+      var oldInst = (oldG && typeof oldG.instId === 'number') ? oldG.instId : null;
+      var r = terrainGate({ kind: 'to_wall', gx: c.gx, gy: c.gy, newTile: T_WALL, gridObj: { type: T_WALL } });
+      if (oldInst != null) delete state.towersByInst[oldInst];
+      if (r.ok) {
+        walled++;
+      } else {
+        // 变墙会封死路径 → 退化为拆除（草地），路径必然仍可走
+        state.tiles[ci] = T_GRASS;
+        state.grid[ci] = null;
+        grassed++;
+      }
+    }
+    log('s', '本波其余候选塔：' + walled + ' 座变墙（可免费拆）' + (grassed > 0 ? ('，' + grassed + ' 座因封路改为空地') : ''));
+    state.candidates = [];
   }
 
   // ----- 进化配方检测：哪些配方可实现（用于高亮进化按钮 + ribbon 显示） -----
@@ -3061,7 +3133,7 @@
       state.evolvable = { any: false, recipeIds: [] };
       return;
     }
-    var towers = _allTrueTowers();
+    var towers = _mergeSelectablePool();
     if (!towers.length) { state.evolvable = { any: false, recipeIds: [] }; return; }
     var recipes = state.cfg.recipes || [];
     for (var r = 0; r < recipes.length; r++) {
@@ -3575,16 +3647,19 @@
     if (!state.cfg || typeof state.cfg.rollTowerByLuck !== 'function') { setMsg('塔配置未就绪', true); return; }
     var towerCfg = state.cfg.rollTowerByLuck(state.luckLevel, { skipSpecial: true });
     if (!towerCfg) { setMsg('塔池为空', true); return; }
+    // V4-10：商店塔同样 Roll"宝石类型 + 实例稀有度"（_rollRarity 透传到落地）
+    var rolledRar = towerCfg._rollRarity || towerCfg.rarity || 'common';
+    towerCfg._shopRarity = rolledRar;
     // 扣金 + 进入放置模式
     state.gold -= cost;
     state.shopTowerMode = true;
     state.shopTowerPending = towerCfg;
     state.shopTowerPaidGold = cost;
-    setMsg('请点击画布空地放置 🏪 [' + rarityLabel(towerCfg.rarity || 'common') + '] ' + (towerCfg.name || towerCfg.id) + '（ESC/点击遮罩外任意处取消 → 退 ' + cost + ' 金）', false);
-    toast('购买成功：[' + rarityLabel(towerCfg.rarity || 'common') + '] ' + (towerCfg.name || towerCfg.id) + '，请在空地落塔', 'info');
-    log('i', '[SHOP-TOWER]  Roll 到 ' + (towerCfg.id || towerCfg.name) + ' (rarity=' + (towerCfg.rarity || '?') + ')，等待空地放置（已扣 ' + cost + ' 金）');
+    setMsg('请点击画布空地放置 🏪 [' + rarityLabel(rolledRar) + '] ' + (towerCfg.name || towerCfg.id) + '（ESC/点击遮罩外任意处取消 → 退 ' + cost + ' 金）', false);
+    toast('购买成功：[' + rarityLabel(rolledRar) + '] ' + (towerCfg.name || towerCfg.id) + '，请在空地落塔', 'info');
+    log('i', '[SHOP-TOWER]  Roll 到 ' + (towerCfg.id || towerCfg.name) + ' (rarity=' + rolledRar + ')，等待空地放置（已扣 ' + cost + ' 金）');
     var st = document.getElementById('shop-tower-status');
-    if (st) st.innerHTML = '<span style="color:#7dd3fc;">放置中：<b>[' + rarityLabel(towerCfg.rarity || 'common') + '] ' + (towerCfg.name || towerCfg.id) + '</b>。点击画布空地落地；<a id="shop-tower-cancel" href="javascript:;" style="color:#f87171;text-decoration:underline;margin-left:4px;">取消购买（退金）</a></span>';
+    if (st) st.innerHTML = '<span style="color:#7dd3fc;">放置中：<b>[' + rarityLabel(rolledRar) + '] ' + (towerCfg.name || towerCfg.id) + '</b>。点击画布空地落地；<a id="shop-tower-cancel" href="javascript:;" style="color:#f87171;text-decoration:underline;margin-left:4px;">取消购买（退金）</a></span>';
     var ca = document.getElementById('shop-tower-cancel');
     if (ca) ca.addEventListener('click', function (e) { e.preventDefault(); cancelShopTowerMode(); });
     var shopBtn = document.getElementById('btn-shop-tower');
@@ -3624,7 +3699,7 @@
       towerCfg: towerCfg,
       towerId: towerCfg.id,
       towerInstanceId: instId,
-      rarity: (towerCfg.rarity || 'common'),
+      rarity: (towerCfg._shopRarity || towerCfg._rollRarity || towerCfg.rarity || 'common'),
       level: 0,
       rollEffect: null,
       damageDealt: 0,
@@ -3776,6 +3851,7 @@
 
   // ---------- battle: wave setup ----------
   function currentWaveCfg() {
+    if (!state.cfg) return null; // 配置未加载（init 竞态/菜单期点击）防御
     var waves = state.cfg.waves || [];
     if (state.waveIndex < 1 || state.waveIndex > waves.length) return null;
     return waves[state.waveIndex - 1];
@@ -3982,21 +4058,58 @@
     }
     return { id: 'grass', towerMul: {}, enemyMul: {} };
   }
+  // ===== V4-10：光环计算 —— 扫描全场塔，返回指定塔可获得的 {atkFlat, atkSpdMul} =====
+  // 光环来源塔读自身稀有度档位 levelsResolved（海蓝宝石=攻速%、蛋白石=攻击点数），半径 auraRadiusCells（格）
+  function _auraBonusFor(gridObj) {
+    var res = { atkFlat: 0, atkSpdMul: 1, sources: 0 };
+    if (!gridObj || !state.cfg || typeof state.cfg.getTowerLevel !== 'function') return res;
+    var cs = state.cell || 48;
+    var myIdx = -1;
+    for (var ii = 0; ii < state.grid.length; ii++) { if (state.grid[ii] === gridObj) { myIdx = ii; break; } }
+    if (myIdx < 0) return res;
+    var gx = myIdx % state.cols, gy = Math.floor(myIdx / state.cols);
+    var me = cellCenterPx(gx, gy);
+    for (var i = 0; i < state.grid.length; i++) {
+      if (state.tiles[i] !== T_TOWER || i === myIdx) continue;
+      var g = state.grid[i];
+      if (!g || !g.towerCfg) continue;
+      var st = state.cfg.getTowerLevel(g.towerCfg, g.rarity || g.towerCfg.rarity);
+      if (!st || !st.auraRadiusCells) continue;
+      var ax = i % state.cols, ay = Math.floor(i / state.cols);
+      var ac = cellCenterPx(ax, ay);
+      var ddx = ac.cx - me.cx, ddy = ac.cy - me.cy;
+      var r = st.auraRadiusCells * cs;
+      if (ddx * ddx + ddy * ddy <= r * r) {
+        if (st.auraAttackFlat > 0) res.atkFlat += st.auraAttackFlat;
+        if (st.auraAttackSpeedPct01 > 0) res.atkSpdMul *= (1 + st.auraAttackSpeedPct01);
+        res.sources++;
+      }
+    }
+    return res;
+  }
+
   function calcTowerEffective(cfg, buffMul, gridObj) {
     if (!cfg) return null;
     var mul = buffMul || currentBuffMul();
     var env = currentEnvironment();
     var tMul = env.towerMul || {};
     var cs = (state.cell || 40);
-    // ===== V4-5：等级 level + L3 rollEffect 叠加 =====
+    // ===== V4-5：等级 level + L3 rollEffect 叠加（V4-10 起 level 无属性加成，唯一用途=解锁 L3 特效 Roll）=====
     var lv = 0, fx = null;
     if (gridObj) {
       lv = Number(gridObj.level) || 0;
       if (typeof gridObj.rollEffect === 'string' && lv >= LEVEL_MAX) fx = getL3Effect(gridObj.rollEffect);
     }
     var lvMul = towerLevelMul(lv);
-    // 最终基础 = cfg.base × levelPow × (buffMul × env) × L3 effect
-    var baseDmg = Number(cfg.baseDamage) || 0;
+    // ===== V4-10：塔成长 = 稀有度成长。基础数值读 levels[rarityIdx]（缺配置回退 cfg 单级字段）=====
+    var rarityNow = (gridObj && gridObj.rarity) || cfg.rarity || 'common';
+    var st = (state.cfg && typeof state.cfg.getTowerLevel === 'function') ? state.cfg.getTowerLevel(cfg, rarityNow) : null;
+    var baseDmg   = st ? st.baseDamage     : (Number(cfg.baseDamage) || 0);
+    var baseIntv  = st ? st.attackInterval : (Number(cfg.attackInterval) || 0);
+    var baseRangeCells = st ? st.rangeCells : (Number(cfg.rangeInCells) || 0);
+    // V4-10 光环（其他塔给本塔的增益）：攻击点数直接加基础、攻速% 乘到攻击速度
+    var aura = _auraBonusFor(gridObj);
+    baseDmg = baseDmg + aura.atkFlat;
     var dmgMul = lvMul.dmg * (mul.towerDamageMulAll || 1) * (Number(tMul.damageMul) || 1);
     var rangeMul = lvMul.range * (mul.towerRangeMulAll || 1) * (Number(tMul.rangeMul) || 1);
     var intvMul = lvMul.interval * (mul.towerAttackIntervalMulAll || 1) * (Number(tMul.attackIntervalMul) || 1);
@@ -4008,38 +4121,59 @@
         // 减速塔：slowStrengthMul 放大；AOE 塔：aoeRadiusMul 放大；否则攻速 bonus（interval 更小）
         // 元素数值配置化：是否减速塔由 gems.json baseBonus.slowOnHitPct01>0 推导（不再硬编码 ice/poison）
         var _ebSlow = state.cfg.getElementBonus(cfg.element);
-        var isSlowTower = !!(_ebSlow && _ebSlow.slowPct > 0);
-        var isAOETower   = !!(cfg.isAOE && Number(cfg.aoeRadiusPx) > 0);
+        var isSlowTower = !!(_ebSlow && _ebSlow.slowPct > 0) || !!(st && st.slowPct01 > 0);
+        var isAOETower   = !!(cfg.isAOE && (Number(cfg.aoeRadiusPx) > 0 || (st && st.aoeRadiusCells > 0)));
         if (isSlowTower && typeof fx.stat.slowStrengthMul === 'number') slowMulExtra = fx.stat.slowStrengthMul;
         if (!isSlowTower && !isAOETower && typeof fx.stat.fallbackAttackIntervalMul === 'number') intvMul *= fx.stat.fallbackAttackIntervalMul;
       }
     }
     var effDmg = baseDmg * dmgMul;
-    var effIntv = Math.max(0.05, (Number(cfg.attackInterval) || 0) * intvMul);
-    var baseRangeCells = Number(cfg.rangeInCells) || 0;
+    var effIntv = Math.max(0.05, baseIntv * intvMul / (aura.atkSpdMul > 0 ? aura.atkSpdMul : 1));
     var effRangePx = baseRangeCells * cs * rangeMul;
     var baseRangePx = baseRangeCells * cs;
-    // 减速：基础效果读 gems.json 元素配置（与 damageEnemy 保持一致）；control effect 额外 × slowMulExtra（仅减速塔）
+    // 减速：V4-10 塔级 levels[].slowPct01 优先（数值表落地：蓝宝石 5%~40%/2s）；未配置回退 gems.json 元素 baseBonus
     var _ebCalc = state.cfg.getElementBonus(cfg.element);
-    var baseSlowPct = (_ebCalc && _ebCalc.slowPct) || 0;
-    var baseSlowSec = (_ebCalc && _ebCalc.slowSec) || 0;
+    var baseSlowPct, baseSlowSec;
+    if (st && st.slowPct01 !== null && typeof st.slowPct01 === 'number') {
+      baseSlowPct = st.slowPct01;
+      baseSlowSec = st.slowSec || 2;
+    } else {
+      baseSlowPct = (_ebCalc && _ebCalc.slowPct) || 0;
+      baseSlowSec = (_ebCalc && _ebCalc.slowSec) || 0;
+    }
     var effSlowPct = (baseSlowPct > 0) ? Math.min(0.95, baseSlowPct * (mul.slowStrengthMulAll || 1) * slowMulExtra) : 0;
     var dps = (effIntv > 0) ? (effDmg / effIntv) : 0;
-    // AOE：基础 AOE 半径（像素）不变，control L3 effect 时 AOE radius × aoeRadiusMul
-    var cfgAOE = Number(cfg.aoeRadiusPx) || 0;
+    // AOE：V4-10 塔级 aoeRadiusCells（格→像素）优先，回退 cfg.aoeRadiusPx；control L3 effect 额外 × aoeRadiusMul
+    var cfgAOE = (st && st.aoeRadiusCells > 0) ? (st.aoeRadiusCells * cs) : (Number(cfg.aoeRadiusPx) || 0);
     var aoeRadiusPx = cfgAOE;
     if (fx && fx.stat && fx.stat.control && cfgAOE > 0 && typeof fx.stat.aoeRadiusMul === 'number') aoeRadiusPx = cfgAOE * fx.stat.aoeRadiusMul;
-    var aoeTag = (cfg.isAOE && aoeRadiusPx > 0) ? '（AOE 半径 ' + Math.round(aoeRadiusPx) + '）' : '';
+    var aoeDamagePct01 = (st && typeof st.aoeDamagePct01 === 'number') ? st.aoeDamagePct01 : 1;
+    var aoeTag = (cfg.isAOE && aoeRadiusPx > 0) ? '（AOE 半径 ' + Math.round(aoeRadiusPx) + '，溅射 ' + Math.round(aoeDamagePct01 * 100) + '%）' : '';
+    // V4-10 塔级特效参数（多重攻击 / 毒素 DoT / 护甲削减）
+    var multiShotCount = (st && st.multiShotCount > 1) ? st.multiShotCount : 1;
+    var poisonDoT   = (st && st.poisonDoTDps > 0) ? { dps: st.poisonDoTDps, sec: (st.poisonDoTSec || 5) } : null;
+    var armorShred  = (st && st.armorShredPoints > 0) ? { points: st.armorShredPoints, sec: (st.armorShredSec || 3) } : null;
+    // V4-10 自身光环输出（海蓝宝石=攻速% / 蛋白石=攻击点数），供塔信息弹窗展示
+    var auraOut = (st && st.auraRadiusCells > 0 && (st.auraAttackFlat > 0 || st.auraAttackSpeedPct01 > 0))
+      ? { radiusCells: st.auraRadiusCells, atkFlat: st.auraAttackFlat || 0, atkSpdPct01: st.auraAttackSpeedPct01 || 0 }
+      : null;
     return {
       cfg: cfg, gridObj: gridObj || null, level: lv, rollEffect: fx ? fx.id : null, rollEffectObj: fx,
       levelMul: lvMul,
       slowMulExtra: slowMulExtra,
-      base: { damage: baseDmg, interval: (Number(cfg.attackInterval)||0), rangePx: baseRangePx, rangeCells: baseRangeCells, slowPct: baseSlowPct, slowSec: baseSlowSec },
+      rarity: rarityNow,
+      base: { damage: (baseDmg - aura.atkFlat), interval: baseIntv, rangePx: baseRangePx, rangeCells: baseRangeCells, slowPct: baseSlowPct, slowSec: baseSlowSec },
       eff:  { damage: effDmg, interval: effIntv, rangePx: effRangePx, rangeCells: baseRangeCells * rangeMul, slowPct: effSlowPct, slowSec: baseSlowSec, aoeRadiusPx: aoeRadiusPx },
       effRangeCellsCalc: baseRangeCells * rangeMul,
       dps: dps,
       aoeTag: aoeTag,
       aoeRadiusPx: aoeRadiusPx,
+      aoeDamagePct01: aoeDamagePct01,
+      multiShotCount: multiShotCount,
+      poisonDoT: poisonDoT,
+      armorShred: armorShred,
+      auraOut: auraOut,
+      aura: aura,
       talentCritRateBonus: (Number(mul._talentCritRateBonus) || 0)
     };
   }
@@ -4140,6 +4274,21 @@
     if (e.slowSec > 0) {
       e.slowSec -= dt;
       if (e.slowSec <= 0) { e.slowSec = 0; e.slowPct = 0; }
+    }
+
+    // ===== V4-10 毒素 DoT 结算（绿宝石）：每秒持续伤害，小步长累计取整；无视护甲/法抗 =====
+    if (e.poisonDoT && e.poisonDoT.dps > 0) {
+      if (state.waveElapsed < e.poisonDoT.until) {
+        e.poisonDoT.acc = (e.poisonDoT.acc || 0) + e.poisonDoT.dps * dt;
+        if (e.poisonDoT.acc >= 1) {
+          var pTick = Math.floor(e.poisonDoT.acc);
+          e.poisonDoT.acc -= pTick;
+          e.hp -= pTick;
+          if (e.hp <= 0) { killEnemy(e, e.poisonDoT.srcTowerCfg, null, null); return; }
+        }
+      } else {
+        e.poisonDoT = null; // 过期清理
+      }
     }
 
     // ========= V4 Task7：HEALER（按 healRadiusCells 治疗周围友军） =========
@@ -4549,6 +4698,14 @@
     if (!e.alive) return 0;
     var ext = extra || {};
     var baseArmor = (e.cfg.armor || 0) * (Number(e.envArmorMul) || 1);
+    // ===== V4-10 护甲削减 DEBUFF（紫水晶）：全队受益，取更强值，到期自动失效 =====
+    var _shredPts = 0;
+    if (e.armorShred && e.armorShred.points > 0 && state.waveElapsed < e.armorShred.until) {
+      _shredPts = e.armorShred.points;
+    } else if (e.armorShred) {
+      e.armorShred = null; // 过期清理
+    }
+    baseArmor = Math.max(0, baseArmor - _shredPts);
     // ---- V4-7 能量技能：穿甲 armorIgnore（clamp 0~1） ----
     var skillArmorIgnore = Number(ext.skillArmorIgnorePct) || 0;
     if (skillArmorIgnore < 0) skillArmorIgnore = 0;
@@ -4654,9 +4811,30 @@
       if (typeof ext.slowMulExtra === 'number') slowPct = slowPct * ext.slowMulExtra;
       slowPct = Math.min(0.95, slowPct);
     }
+    // V4-10 塔级减速（levels[].slowPct01）优先于元素 baseBonus：弹上 towerSlowPct 已含 buff/L3 特效倍率，直接覆盖
+    if (typeof ext.towerSlowPct === 'number' && ext.towerSlowPct > 0) {
+      slowPct = Math.min(0.95, ext.towerSlowPct);
+      slowSec = ext.towerSlowSec || 2;
+    }
     if (slowPct > 0 && slowSec > 0) {
       if (slowPct > (e.slowPct || 0)) e.slowPct = slowPct;
       e.slowSec = Math.max(e.slowSec || 0, slowSec);
+    }
+    // ===== V4-10 毒素 DoT（绿宝石 poisonDoTDps）：取更强 dps，命中刷新持续时间 =====
+    if (ext.poisonDoT && ext.poisonDoT.dps > 0) {
+      if (!e.poisonDoT || e.poisonDoT.dps < ext.poisonDoT.dps) {
+        e.poisonDoT = { dps: ext.poisonDoT.dps, until: state.waveElapsed + (ext.poisonDoT.sec || 5), acc: 0, srcTowerCfg: towerCfg || null };
+      } else {
+        e.poisonDoT.until = Math.max(e.poisonDoT.until, state.waveElapsed + (ext.poisonDoT.sec || 5));
+      }
+    }
+    // ===== V4-10 护甲削减 DEBUFF（紫水晶 armorShredPoints）：取更强值，命中刷新持续时间 =====
+    if (ext.armorShred && ext.armorShred.points > 0) {
+      if (!e.armorShred || e.armorShred.points < ext.armorShred.points) {
+        e.armorShred = { points: ext.armorShred.points, until: state.waveElapsed + (ext.armorShred.sec || 3) };
+      } else {
+        e.armorShred.until = Math.max(e.armorShred.until, state.waveElapsed + (ext.armorShred.sec || 3));
+      }
     }
     if (e.hp <= 0) killEnemy(e, towerCfg, buffMul, { sourceGridIdx: gi });
     return dealtToHp;
@@ -4759,10 +4937,9 @@
   // ==========================================================================
   // V4-5 Task 9：塔升级等级成本 / level 线性加成 / L3 5 种特殊效果注册表
   // ==========================================================================
-  var LEVEL_UP_COST_L = [40, 80, 120]; // L0→L1, L1→L2, L2→L3（对应 g.level → nextLv = g.level+1，index=g.level）
+  // V4-10：金币升级唯一用途 = 一步解锁 L3 特效 Roll（不再提供伤害/攻速/范围加成，塔成长=稀有度成长）
   var LEVEL_MAX = 3;
-  // 每级线性系数：伤害 ×1.30，攻速 +10%（interval ÷1.1），范围 ×1.05；累计 Lk = level 级就是 Math.pow(k, lv)
-  var LV_MUL_DMG = 1.30, LV_MUL_ATK_SPD = 1.10, LV_MUL_RANGE = 1.05;
+  var L3_UNLOCK_COST = 120; // 解锁 L3 特效的金币费用（老存档 L1/L2 可直接补解锁）
 
   // 5 种 L3 特殊效果（等概率随机，互斥）：icon 用于 canvas 角标 & L3 roll modal / L3 展示块
   var L3_EFFECTS = [
@@ -4782,11 +4959,8 @@
   function rollL3Effect() { return L3_EFFECTS[Math.floor(Math.random() * L3_EFFECTS.length)]; }
   function getL3Effect(id){ return (id && L3_EFFECT_BY_ID[id]) ? L3_EFFECT_BY_ID[id] : null; }
   function towerLevelMul(level) {
-    var lv = Number(level) || 0;
-    if (lv <= 0) return { dmg: 1, interval: 1, range: 1 };
-    var d = 1, i = 1, r = 1;
-    for (var k = 0; k < lv; k++) { d *= LV_MUL_DMG; i /= LV_MUL_ATK_SPD; r *= LV_MUL_RANGE; }
-    return { dmg: d, interval: i, range: r };
+    // V4-10：金币升级不再提供属性加成（塔成长 = 稀有度成长），恒返回中性系数；仅 L3 特效 stat 生效
+    return { dmg: 1, interval: 1, range: 1 };
   }
 
   // ==========================================================================
@@ -4971,8 +5145,51 @@
         skillDamageMul: skillParams.skillDamageMul,
         skillArmorIgnorePct: skillParams.skillArmorIgnorePct,
         skillSlowMul: skillParams.skillSlowMul,
-        skillSlowTicksSec: skillParams.skillSlowTicksSec
+        skillSlowTicksSec: skillParams.skillSlowTicksSec,
+        // ===== V4-10 塔级特效透传（每级减速 / 溅射比例 / 毒素DoT / 护甲削减）=====
+        towerSlowPct:   (tev.eff.slowPct > 0) ? tev.eff.slowPct : 0,
+        towerSlowSec:   (tev.eff.slowPct > 0) ? (tev.eff.slowSec || 2) : 0,
+        aoeDamagePct01: (typeof tev.aoeDamagePct01 === 'number') ? tev.aoeDamagePct01 : 1,
+        poisonDoT:      tev.poisonDoT || null,
+        armorShred:     tev.armorShred || null
       });
+      // ===== V4-10 多重攻击（黄玉 multiShotCount=3）：再选 N-1 个不同敌人，各打一发全额伤害 =====
+      var mShot = (tev.multiShotCount > 1) ? tev.multiShotCount : 1;
+      if (mShot > 1) {
+        var mExcludes = {};
+        mExcludes[best.instId] = true;
+        for (var msi = 1; msi < mShot; msi++) {
+          var mTarget = _pickTargetInRange(center, effRange, strategy, null, mExcludes);
+          if (!mTarget) break;
+          mExcludes[mTarget.instId] = true;
+          state.projectiles.push({
+            x: center.cx, y: center.cy,
+            targetId: mTarget.instId,
+            speed: 540,
+            color: g.towerCfg.color || '#fde047',
+            towerCfg: g.towerCfg,
+            sourceGridIdx: i,
+            finalDamage: eff.damage,
+            effInterval: attackIntv,
+            effAoeRadiusPx: 0, // 多重弹为单体命中，不触发 AOE
+            isCrit: false,
+            critMul: 1,
+            ricochetCfg: null,
+            slowMulExtra: 1,
+            tag: 'multi',
+            energySkillActive: !!skillFire,
+            skillDamageMul: skillParams.skillDamageMul,
+            skillArmorIgnorePct: skillParams.skillArmorIgnorePct,
+            skillSlowMul: skillParams.skillSlowMul,
+            skillSlowTicksSec: skillParams.skillSlowTicksSec,
+            towerSlowPct:   (tev.eff.slowPct > 0) ? tev.eff.slowPct : 0,
+            towerSlowSec:   (tev.eff.slowPct > 0) ? (tev.eff.slowSec || 2) : 0,
+            aoeDamagePct01: 1,
+            poisonDoT:      tev.poisonDoT || null,
+            armorShred:     tev.armorShred || null
+          });
+        }
+      }
       // ===== double_shot：再选一个与 best 不同的敌人，打 extraDamageMul（0.80）伤害，无 crit 无弹射链 =====
       if (trigger === 'double_shot') {
         var dblTarget = _pickTargetInRange(center, effRange, TOWER_STRATEGIES.NEAR, best.instId);
@@ -5006,17 +5223,22 @@
     }
   }
 
-  // 与 stepTowers 解耦：给定中心、范围、策略，返回一个 alive 敌人（可选排除某 instId）
-  function _pickTargetInRange(center, rangePx, strategy, excludeInstId) {
+  // 与 stepTowers 解耦：给定中心、范围、策略，返回一个 alive 敌人（可选排除某 instId / 排除集合 excludeMap）
+  function _pickTargetInRange(center, rangePx, strategy, excludeInstId, excludeMap) {
     var rr2 = rangePx * rangePx;
     var best = null;
     var s = _normStrategy(strategy);
+    function _excluded(e) {
+      if (excludeInstId != null && e.instId === excludeInstId) return true;
+      if (excludeMap && excludeMap[e.instId]) return true;
+      return false;
+    }
     if (s === TOWER_STRATEGIES.FAR) {
       var bestScore = -Infinity;
       for (var j = 0; j < state.enemies.length; j++) {
         var e = state.enemies[j];
         if (!e.alive) continue;
-        if (excludeInstId != null && e.instId === excludeInstId) continue;
+        if (_excluded(e)) continue;
         var ddx = e.px - center.cx, ddy = e.py - center.cy;
         var dd = ddx * ddx + ddy * ddy;
         if (dd > rr2) continue;
@@ -5027,7 +5249,7 @@
       var bh = -Infinity;
       for (var j = 0; j < state.enemies.length; j++) {
         var e = state.enemies[j]; if (!e.alive) continue;
-        if (excludeInstId != null && e.instId === excludeInstId) continue;
+        if (_excluded(e)) continue;
         var ddx = e.px - center.cx, ddy = e.py - center.cy;
         var dd = ddx * ddx + ddy * ddy;
         if (dd > rr2) continue;
@@ -5037,7 +5259,7 @@
       var lh = Infinity;
       for (var j = 0; j < state.enemies.length; j++) {
         var e = state.enemies[j]; if (!e.alive) continue;
-        if (excludeInstId != null && e.instId === excludeInstId) continue;
+        if (_excluded(e)) continue;
         var ddx = e.px - center.cx, ddy = e.py - center.cy;
         var dd = ddx * ddx + ddy * ddy;
         if (dd > rr2) continue;
@@ -5047,7 +5269,7 @@
       var bd = Infinity;
       for (var j = 0; j < state.enemies.length; j++) {
         var e = state.enemies[j]; if (!e.alive) continue;
-        if (excludeInstId != null && e.instId === excludeInstId) continue;
+        if (_excluded(e)) continue;
         var ddx = e.px - center.cx, ddy = e.py - center.cy;
         var dd = ddx * ddx + ddy * ddy;
         if (dd <= rr2 && dd < bd) { best = e; bd = dd; }
@@ -5085,7 +5307,13 @@
           if (typeof p.skillArmorIgnorePct === 'number') src.skillArmorIgnorePct = p.skillArmorIgnorePct;
           if (typeof p.skillSlowMul        === 'number') src.skillSlowMul        = p.skillSlowMul;
           if (typeof p.skillSlowTicksSec   === 'number') src.skillSlowTicksSec   = p.skillSlowTicksSec;
-          // V4-7：子弹命中后给 source 塔清零能量（如果是 skillFire=true 的那发）—— 放到 damageEnemy 前，确保 AOE/单体 无论是否击杀都能正确"扣能量"
+          // ===== V4-10 塔级特效透传（每级减速 / 毒素DoT / 护甲削减）=====
+          if (typeof p.towerSlowPct === 'number' && p.towerSlowPct > 0) {
+            src.towerSlowPct = p.towerSlowPct;
+            src.towerSlowSec = p.towerSlowSec || 2;
+          }
+          if (p.poisonDoT && p.poisonDoT.dps > 0) src.poisonDoT = p.poisonDoT;
+          if (p.armorShred && p.armorShred.points > 0) src.armorShred = p.armorShred;
           if (p.energySkillActive && typeof src.sourceGridIdx === 'number') {
             var srcG = state.grid[src.sourceGridIdx];
             if (srcG) _towerConsumeSkillEnergy(srcG);
@@ -5104,7 +5332,9 @@
             if (ddx * ddx + ddy * ddy <= r2) {
               var srcAoe = { sourceGridIdx: src.sourceGridIdx };
               if (typeof p.finalDamage === 'number' && p.finalDamage >= 0) {
-                var aoeBase = p.finalDamage;
+                // V4-10 溅射比例：红宝石 aoeDamagePct01（30%~100%），缺省全额
+                var aoePct01 = (typeof p.aoeDamagePct01 === 'number' && p.aoeDamagePct01 > 0) ? p.aoeDamagePct01 : 1;
+                var aoeBase = Math.max(1, Math.floor(p.finalDamage * aoePct01));
                 srcAoe.finalDamageOverride = aoeBase;
                 srcAoe.isCrit = false;
                 srcAoe.critMul = 1;
@@ -5114,6 +5344,13 @@
                 if (typeof p.skillArmorIgnorePct === 'number') srcAoe.skillArmorIgnorePct = p.skillArmorIgnorePct;
                 if (typeof p.skillSlowMul        === 'number') srcAoe.skillSlowMul        = p.skillSlowMul;
                 if (typeof p.skillSlowTicksSec   === 'number') srcAoe.skillSlowTicksSec   = p.skillSlowTicksSec;
+                // V4-10：AOE 溅射同样附加每级减速 / 毒素DoT / 护甲削减（数值表语义：溅射=范围命中）
+                if (typeof p.towerSlowPct === 'number' && p.towerSlowPct > 0) {
+                  srcAoe.towerSlowPct = p.towerSlowPct;
+                  srcAoe.towerSlowSec = p.towerSlowSec || 2;
+                }
+                if (p.poisonDoT && p.poisonDoT.dps > 0) srcAoe.poisonDoT = p.poisonDoT;
+                if (p.armorShred && p.armorShred.points > 0) srcAoe.armorShred = p.armorShred;
               }
               damageEnemy(e2, p.towerCfg, false, buffMul, srcAoe);
             }
@@ -5332,38 +5569,30 @@
       return;
     }
     if (g.level >= LEVEL_MAX) {
-      toast('已达到最高等级 L' + LEVEL_MAX, 'info');
+      toast('L3 特效已解锁', 'info');
       return;
     }
-    var costIdx = g.level; // L0→L1: index 0, L1→L2: index 1, L2→L3: index 2
-    var cost = LEVEL_UP_COST_L[costIdx] || 0;
+    var cost = L3_UNLOCK_COST;
     if (state.gold < cost) {
       toast('金币不足（需要 ' + cost + ' 金）', 'er');
       return;
     }
     state.gold -= cost;
-    g.level += 1;
-    log('s', '塔(' + (gridIdx % state.cols) + ',' + Math.floor(gridIdx / state.cols) + ')升级 → L' + g.level + '，消耗 ' + cost + ' 金币');
-    if (g.level >= LEVEL_MAX) {
-      // L3：roll effect + 弹窗动画 + 落定后写入 g.rollEffect
-      _l3RollTargetGridIdx = gridIdx;
-      _l3RollResult = rollL3Effect();
-      startL3RollAnimation(_l3RollResult, function () {
-        // 落定回调：写入 rollEffect（也作为"动画已经播过一次"的标识，后续不再重复弹）
-        g.rollEffect = _l3RollResult.id;
-        log('s', '塔(' + (gridIdx % state.cols) + ',' + Math.floor(gridIdx / state.cols) + ') L3 特殊效果 → ' + _l3RollResult.name + '（' + _l3RollResult.desc + '）');
-        // 若升级弹框仍开着 → 刷新等级/效果显示 & 升级按钮置为已满级
-        if (_towerInfoIdx === gridIdx) {
-          openTowerInfoModal(gridIdx);
-        }
-        refreshHUD(); draw();
-      });
-    } else {
-      // L0→L1 / L1→L2：即时刷新塔信息弹框 & HUD & 画布
-      setMsg('升级成功！L' + g.level + '（-' + cost + ' 金）');
-      if (_towerInfoIdx === gridIdx) openTowerInfoModal(gridIdx);
+    g.level = LEVEL_MAX;
+    log('s', '塔(' + (gridIdx % state.cols) + ',' + Math.floor(gridIdx / state.cols) + ')解锁 L3 特效，消耗 ' + cost + ' 金币');
+    // L3：roll effect + 弹窗动画 + 落定后写入 g.rollEffect
+    _l3RollTargetGridIdx = gridIdx;
+    _l3RollResult = rollL3Effect();
+    startL3RollAnimation(_l3RollResult, function () {
+      // 落定回调：写入 rollEffect（也作为"动画已经播过一次"的标识，后续不再重复弹）
+      g.rollEffect = _l3RollResult.id;
+      log('s', '塔(' + (gridIdx % state.cols) + ',' + Math.floor(gridIdx / state.cols) + ') L3 特殊效果 → ' + _l3RollResult.name + '（' + _l3RollResult.desc + '）');
+      // 若升级弹框仍开着 → 刷新等级/效果显示 & 升级按钮置为已满级
+      if (_towerInfoIdx === gridIdx) {
+        openTowerInfoModal(gridIdx);
+      }
       refreshHUD(); draw();
-    }
+    });
   }
 
   function startL3RollAnimation(effectObj, onDone) {
@@ -5533,6 +5762,28 @@
     html += '<div class="row"><span class="k">攻击间隔</span><span class="v">' + fmtEffBase(tev.eff.interval.toFixed(2), tev.base.interval.toFixed(2), ' 秒', -1) + '</span></div>';
     html += '<div class="row"><span class="k">攻击范围</span><span class="v">' + fmtEffBase(tev.eff.rangeCells.toFixed(2), tev.base.rangeCells.toFixed(2), ' 格', -1) + ' <span class="base-meta">≈ ' + Math.round(tev.eff.rangePx) + ' px</span></span></div>';
     html += '<div class="row"><span class="k">减速效果</span><span class="v">' + slowText(tev.eff.slowPct, tev.eff.slowSec, tev.base.slowPct, tev.base.slowSec) + '</span></div>';
+    // ===== V4-10 塔级特效展示（多重攻击 / 毒素DoT / 护甲削减 / 光环）=====
+    if (tev.multiShotCount > 1) {
+      html += '<div class="row"><span class="k">多重攻击</span><span class="v">' + tev.multiShotCount + ' 个目标（各一发全额伤害）</span></div>';
+    }
+    if (tev.poisonDoT && tev.poisonDoT.dps > 0) {
+      html += '<div class="row"><span class="k">毒素DoT</span><span class="v">' + tev.poisonDoT.dps + '/秒 × ' + tev.poisonDoT.sec + '秒（取更强，命中刷新）</span></div>';
+    }
+    if (tev.armorShred && tev.armorShred.points > 0) {
+      html += '<div class="row"><span class="k">护甲削减</span><span class="v">-' + tev.armorShred.points + ' 点 / ' + tev.armorShred.sec + '秒（全队受益）</span></div>';
+    }
+    if (tev.auraOut) {
+      var _aoTxt = [];
+      if (tev.auraOut.atkFlat > 0) _aoTxt.push('攻击 +' + tev.auraOut.atkFlat);
+      if (tev.auraOut.atkSpdPct01 > 0) _aoTxt.push('攻速 +' + Math.round(tev.auraOut.atkSpdPct01 * 100) + '%');
+      html += '<div class="row"><span class="k">光环（己方）</span><span class="v">' + _aoTxt.join('，') + ' / 半径 ' + tev.auraOut.radiusCells + ' 格</span></div>';
+    }
+    if (tev.aura && (tev.aura.atkFlat > 0 || tev.aura.atkSpdMul > 1)) {
+      var _aiTxt = [];
+      if (tev.aura.atkFlat > 0) _aiTxt.push('攻击 +' + tev.aura.atkFlat);
+      if (tev.aura.atkSpdMul > 1) _aiTxt.push('攻速 +' + Math.round((tev.aura.atkSpdMul - 1) * 100) + '%');
+      html += '<div class="row"><span class="k">光环（受惠）</span><span class="v">' + _aiTxt.join('，') + '（来自周围 ' + (tev.aura.sources || 0) + ' 塔）</span></div>';
+    }
     html += '<div class="row sep"><span class="k">DPS（估算）</span><span class="v dps">' + (tev.dps >= 10 ? Math.round(tev.dps) : tev.dps.toFixed(1)) + '</span></div>';
     html += '<div class="row"><span class="k">本波伤害</span><span class="v">' + (Number(g.damageDealt) || 0) + '</span></div>';
     html += '<div class="row"><span class="k">本波击杀</span><span class="v">' + (Number(g.kills) || 0) + '</span></div>';
@@ -5599,32 +5850,31 @@
         fxBlock.classList.add('hidden');
       }
     }
-    // 升级按钮文案/禁用态
+    // ===== V4-11 操作按钮显隐：有可用操作才显示（合成 / 进化 / 保留 / 解锁L3）=====
+    var win = _mergeWindowOpen();
+    var fuBtn = document.getElementById('ti-fusion');
+    if (fuBtn) fuBtn.style.display = (win && _canFusionFrom(gridIdx)) ? '' : 'none';
+    var evBtn = document.getElementById('ti-evolve');
+    if (evBtn) evBtn.style.display = (win && _canEvolveFrom(gridIdx)) ? '' : 'none';
+    var rsBtn = document.getElementById('ti-reserve');
+    if (rsBtn) {
+      rsBtn.style.display = (win && state.tiles[gridIdx] === T_CAND) ? '' : 'none';
+      rsBtn.title = '保留本塔，本波其余候选塔变墙并开始战斗';
+    }
+    // L3 特效解锁：仅真塔、未解锁、阶段允许且金币足够才显示（不能操作不显示）
     var upgBtn = document.getElementById('ti-upgrade');
     if (upgBtn) {
       var phaseOk = (state.phase === PHASE.PREPARE || state.phase === PHASE.WAVEEND);
-      if (lv >= LEVEL_MAX) {
-        upgBtn.textContent = '已满级 L' + LEVEL_MAX;
-        upgBtn.classList.add('disabled');
-        upgBtn.disabled = true;
-      } else {
-        var cost = LEVEL_UP_COST_L[lv] || 0;
-        var canAfford = (state.gold >= cost);
-        var enable = phaseOk && canAfford;
-        upgBtn.textContent = '升级 L' + (lv + 1) + '（-' + cost + ' 金）';
-        upgBtn.disabled = !enable;
-        if (enable) upgBtn.classList.remove('disabled'); else upgBtn.classList.add('disabled');
-        if (!phaseOk && lv < LEVEL_MAX) {
-          // 显示原因悬浮到按钮 title
-          var reason = (state.phase === PHASE.BATTLE) ? '战斗中不可升级'
-            : (state.phase === PHASE.RESERVE) ? '保留阶段不可升级'
-            : (state.phase === PHASE.MENU) ? '开始游戏后可升级'
-            : '当前阶段不可升级';
-          if (!canAfford) reason = '金币不足（需要 ' + cost + ' 金）';
-          upgBtn.title = reason;
-        } else {
-          upgBtn.title = '';
-        }
+      var isRealTower = (state.tiles[gridIdx] === T_TOWER);
+      var cost = L3_UNLOCK_COST;
+      var canAfford = (state.gold >= cost);
+      var showUpg = isRealTower && phaseOk && lv < LEVEL_MAX && canAfford;
+      upgBtn.style.display = showUpg ? '' : 'none';
+      if (showUpg) {
+        upgBtn.textContent = '解锁 L3 特效（-' + cost + ' 金）';
+        upgBtn.disabled = false;
+        upgBtn.classList.remove('disabled');
+        upgBtn.title = '';
       }
     }
     // 策略按钮高亮
@@ -5650,6 +5900,16 @@
     _towerInfoIdx = null;
     var m = document.getElementById('tower-info-modal');
     if (m) m.classList.add('hidden');
+  }
+  // V4-11：塔详情操作 → 进入合成/进化模式并把本塔作为第一座材料预选
+  function _tiAction(mode) {
+    var gi = _towerInfoIdx;
+    if (gi == null) return;
+    closeTowerInfoModal();
+    if (state.merge.mode !== mode) setMergeMode(mode);
+    if (state.merge.mode === mode && state.merge.selected.indexOf(gi) < 0) {
+      toggleSelectTower(gi);
+    }
   }
   function setTowerStrategy(strategy) {
     if (_towerInfoIdx == null) return;
@@ -5721,14 +5981,13 @@
       return;
     }
     // ---- 以下 PREPARE / BATTLE 阶段才允许操作 ----
-    // v4 合成模式：点真塔 → 选中/取消；点空地 → 视为无效操作（提示）；忽略 T_WALL/T_CAND
+    // v4 合成模式：点塔/本波候选 → 选中/取消；点空地 → 视为无效操作（提示）；忽略 T_WALL
     if (state.merge && state.merge.mode) {
-      if (t === T_TOWER) {
+      if (t === T_TOWER || t === T_CAND) {
         toggleSelectTower(idx(x, y));
       } else {
-        toast(('升级' === state.merge.mode ? '【A升级】'
-             : 'fusion' === state.merge.mode ? '【B合成】' : '【C进化】')
-             + '请点击已建成的真塔进行选择（点击空地无效）。', 'info');
+        toast('fusion' === state.merge.mode ? '【B合成】' : '【C进化】'
+             + '请点击防御塔（含本波候选塔）进行选择（点击空地无效）。', 'info');
       }
       draw();
       return;
@@ -5758,7 +6017,9 @@
       if (!p.ok) { setMsg(p.msg || '无法放置', true); if (p.msg && p.msg.indexOf('封死') >= 0) log('e', p.msg); }
       refreshHUD(); draw();
       if (p.ok && state.placementUsed >= state.placementTotal) {
-        showReserveModal();
+        // V4-11：不再自动弹保留框 —— 保留/合成/进化全部收敛到塔详情弹窗
+        setMsg('已放满 5 塔：点击任意防御塔 → 详情中「保留」或「合成 / 进化」（合成后其余塔变墙）');
+        toast('已放满 5 塔，点击防御塔选择保留或合成', 'ok');
       }
       return;
     }
@@ -5871,10 +6132,12 @@
       return;
     }
     if (state.phase === PHASE.PREPARE) {
-      // 如果玩家没放满也允许战斗（剩余保留 1 塔 + 其余变墙）：按"放置次数最少保留1个"逻辑处理
-      if (state.placementUsed === 0) { setMsg('至少放置 1 次再开始', true); return; }
-      // 如果还没放满，进入 RESERVE modal 让玩家从已放置者里选 1 个；不满的其余变成墙（不存在的不动）
-      showReserveModal();
+      // V4-11：保留/合成入口已移到塔详情弹窗；此按钮在 PREPARE 阶段隐藏，仅做引导兜底
+      if (state.placementUsed < state.placementTotal) {
+        setMsg('请继续放置防御塔（' + state.placementUsed + '/' + state.placementTotal + '）', true);
+      } else {
+        setMsg('已放满 5 塔：点击任意防御塔，在详情中选择「保留」或「合成 / 进化」', true);
+      }
       return;
     }
     if (state.phase === PHASE.BATTLE) {
@@ -6102,6 +6365,20 @@
     // ---- V4 Task9 塔升级按钮（.btn.ti-upgrade）----
     var upg = document.getElementById('ti-upgrade');
     if (upg) upg.addEventListener('click', function () { upgradeTower(_towerInfoIdx); });
+    // ---- V4-11 塔详情操作按钮（合成 / 进化 / 保留）----
+    var tiFusion = document.getElementById('ti-fusion');
+    if (tiFusion) tiFusion.addEventListener('click', function () { _tiAction('fusion'); });
+    var tiEvolve = document.getElementById('ti-evolve');
+    if (tiEvolve) tiEvolve.addEventListener('click', function () { _tiAction('evolve'); });
+    var tiReserve = document.getElementById('ti-reserve');
+    if (tiReserve) tiReserve.addEventListener('click', function () {
+      var gi = _towerInfoIdx;
+      if (gi == null) return;
+      var g = state.grid[gi];
+      if (!g) return;
+      var r = reserveOne(g.instId);
+      if (!r.ok) toast(r.msg || '无法保留', 'er');
+    });
     var l3c = document.getElementById('l3-close');
     if (l3c) l3c.addEventListener('click', function () { hideL3RollModal(); });
     var l3m = document.getElementById('l3-roll-modal');
@@ -6178,9 +6455,8 @@
     _stepProjectiles: function (dt, mul) { stepProjectiles(dt, mul || {}); },
     _stepEnemy: function (e, dt) { stepEnemy(e, dt); },
     _damageEnemy: function (e, cfg, low, mul, extra) { return damageEnemy(e, cfg, low, mul, extra); },
-    _LEVEL_UP_COST_L: LEVEL_UP_COST_L.slice(),
+    _L3_UNLOCK_COST: L3_UNLOCK_COST,
     _LEVEL_MAX: LEVEL_MAX,
-    _LV_MUL: { dmg: LV_MUL_DMG, atkSpd: LV_MUL_ATK_SPD, range: LV_MUL_RANGE },
     _L3_EFFECTS: L3_EFFECTS.slice(),
     // V4-6 T12: 商店/商店塔调试接口
     _showWaveendModal: function () { showWaveendModal(); },
@@ -6454,6 +6730,8 @@
     mergeTest: (function () {
       // ------- 内部工具 -------
       function _ensurePhasePrepare() {
+        // V4-11：合成窗口 = PREPARE + 放满 5 塔 —— 调试入口同步补满放置次数，保证 setMergeMode 可用
+        if (state.placementUsed < state.placementTotal) state.placementUsed = state.placementTotal;
         if (state.phase !== PHASE.PREPARE) {
           // 强制进入 PREPARE（测试用），同时刷新合成相关 UI
           state.phase = PHASE.PREPARE;
@@ -6542,46 +6820,7 @@
           draw();
           return { ok: results.every(function (x) { return x.ok; }), results: results, toast: { msg: _lastToastMsg, type: _lastToastType } };
         },
-        // [3] 执行 A 类合成（升级）：传入 2 个 grid idx，模拟"点升级→选2塔→弹窗→确认"全流程
-        runMergeA: function (idx1, idx2) {
-          _selClear();
-          _ensurePhasePrepare();
-          setMergeMode('upgrade');
-          toggleSelectTower(idx1);
-          toggleSelectTower(idx2);
-          var v = _validateCurrentAndPreview();
-          if (!v.ok) return { ok: false, phase: 'validate', msg: v.msg, toast: v.toastMsg, summary: TDGame._v4.summary() };
-          // 产物预期稀有度（断言用）
-          var baseR = state.grid[idx1].rarity || state.grid[idx1].towerCfg.rarity;
-          var expectedNext = state.cfg.nextRarityUp(baseR);
-          var expectedPlaceIdx = idx2; // 第二座（最后选择的）
-          onMergeModalConfirm();
-          // 验证产物：placeIdx 处有塔且稀有度 = expectedNext
-          var g = state.grid[expectedPlaceIdx];
-          var pass = !!(g && g.towerCfg && (g.rarity || g.towerCfg.rarity) === expectedNext);
-          // 验证素材 1 已被清除
-          var mat1Cleared = !(state.grid[idx1] && state.grid[idx1].towerCfg);
-          // 验证特殊塔：A 不能产特殊塔
-          var isSpecial = !!(g && g.towerCfg && g.towerCfg.special);
-          detectEvolvable();
-          renderEvolveRibbon(false);
-          draw();
-          return {
-            ok: pass && mat1Cleared && !isSpecial,
-            phase: 'done',
-            expected: { rarity: expectedNext, placeIdx: expectedPlaceIdx },
-            actual: {
-              rarity: g ? (g.rarity || (g.towerCfg && g.towerCfg.rarity)) : null,
-              placeIdxHasTower: !!g,
-              placeIdxCfgId: g && g.towerCfg ? g.towerCfg.id : null,
-              placeIdxCfgName: g && g.towerCfg ? g.towerCfg.name : null,
-              special: isSpecial,
-              mat1Cleared: mat1Cleared
-            },
-            toast: { msg: _lastToastMsg, type: _lastToastType },
-            summary: TDGame._v4.summary()
-          };
-        },
+        // [3]（V4-11 A 类升级已下线，调试入口移除）
         // [4] 执行 B 类合成（3 同稀有度不同塔）：idx1,idx2,idx3 顺序，产物在 idx3
         runMergeB: function (idx1, idx2, idx3) {
           _selClear();
@@ -6758,18 +6997,7 @@
             cfgId: cfg.id
           };
         },
-        // [11] AB 特殊塔拒绝测试：尝试 runMergeA/B 带特殊塔材料，返回校验阶段错误
-        tryMergeAWithSpecial: function (idx1, idx2) {
-          _selClear();
-          _ensurePhasePrepare();
-          state.merge.mode = 'upgrade';
-          state.merge.selected = [idx1, idx2];
-          var v = validateAndBuildPreview();
-          var rejected = !!(v && !v.ok);
-          var msg = v ? v.msg : '';
-          _selClear();
-          return { rejected: rejected, validateOk: !!(v && v.ok), msg: msg, toast: _lastToastMsg };
-        },
+        // [11] B 特殊塔拒绝测试：尝试 runMergeB 带特殊塔材料，返回校验阶段错误（V4-11 A 类已下线）
         tryMergeBWithSpecial: function (idx1, idx2, idx3) {
           _selClear();
           _ensurePhasePrepare();
@@ -6781,18 +7009,7 @@
           _selClear();
           return { rejected: rejected, validateOk: !!(v && v.ok), msg: msg, toast: _lastToastMsg };
         },
-        // [12] 失败用例快捷：A 类不同稀有度 2 塔，B 类仅 2 塔或不同稀有度，C 类不匹配配方
-        tryMergeADifferentRarity: function (idxCommon, idxRare) {
-          _selClear();
-          _ensurePhasePrepare();
-          state.merge.mode = 'upgrade';
-          state.merge.selected = [idxCommon, idxRare];
-          var v = validateAndBuildPreview();
-          var rejected = !!(v && !v.ok);
-          var msg = v ? v.msg : '';
-          _selClear();
-          return { rejected: rejected, validateOk: !!(v && v.ok), msg: msg, toast: _lastToastMsg };
-        },
+        // [12] 失败用例快捷：B 类仅 2 塔或不同稀有度，C 类不匹配配方（V4-11 A 类已下线）
         tryMergeBOnly2Towers: function (idx1, idx2) {
           _selClear();
           _ensurePhasePrepare();
@@ -6828,6 +7045,54 @@
             }
           }
           return list;
+        },
+        // [14] V4-11 端到端验证：直接放置 n 个候选塔（走 placeCandidate 真实流程，含 Roll）
+        placeCandidates: function (n) {
+          n = n || 5;
+          _ensurePhasePrepare();
+          state.placementUsed = 0;
+          var sp = TDGame._v4.findEmptyTiles(n + 8);
+          var placed = [];
+          for (var i = 0; i < sp.length && placed.length < n; i++) {
+            var r = placeCandidate(sp[i].gx, sp[i].gy);
+            if (r && r.ok) placed.push({ idx: sp[i].idx, gx: sp[i].gx, gy: sp[i].gy });
+          }
+          refreshHUD();
+          draw();
+          return { ok: placed.length === n, need: n, placed: placed, placementUsed: state.placementUsed };
+        },
+        // [15] V4-11 端到端验证：模拟用户在画布上点击某格（走 onCanvasClick 真实流程）
+        clickCell: function (gridIdx) {
+          var cv = document.getElementById('stage');
+          if (!cv || state.cols <= 0) return { ok: false, msg: 'canvas not ready' };
+          var r = cv.getBoundingClientRect();
+          var gx = gridIdx % state.cols, gy = Math.floor(gridIdx / state.cols);
+          var x = r.left + (gx + 0.5) * state.cell * (r.width / cv.width);
+          var y = r.top + (gy + 0.5) * state.cell * (r.height / cv.height);
+          cv.dispatchEvent(new MouseEvent('click', { clientX: x, clientY: y, bubbles: true }));
+          return { ok: true, gx: gx, gy: gy };
+        },
+        // [16] V4-11 端到端验证：读取塔详情弹窗状态 + 四个操作按钮可见性
+        towerModalState: function () {
+          var m = document.getElementById('tower-info-modal');
+          function vis(id) {
+            var e = document.getElementById(id);
+            return !!(e && e.style.display !== 'none');
+          }
+          var mergeModal = document.getElementById('merge-modal');
+          return {
+            phase: state.phase,
+            towerInfoOpen: !!(m && !m.classList.contains('hidden')),
+            fusion: vis('ti-fusion'),
+            evolve: vis('ti-evolve'),
+            reserve: vis('ti-reserve'),
+            upgrade: vis('ti-upgrade'),
+            mergeModalOpen: !!(mergeModal && !mergeModal.classList.contains('hidden')),
+            candidatesLeft: state.candidates.length,
+            placementUsed: state.placementUsed,
+            placementTotal: state.placementTotal,
+            startBtnVisible: (function () { var b = document.getElementById('btn-start-wave'); return !!(b && !b.classList.contains('hidden')); })()
+          };
         }
       };
     })()

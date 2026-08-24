@@ -222,39 +222,21 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 .hud-bottom-center .phase-extra .chip.hot { background: #7c2d12; border-color: #c2410c; color: #fed7aa; }
 .hud-bottom-center .phase-extra .chip.ok  { background: #064e3b; border-color: #059669; color: #a7f3d0; }
 
-/* ===== 中间"开始本波"按钮 ===== */
-.center-start {
-  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  z-index: 7;
-  min-width: 220px; padding: 14px 28px;
-  border-radius: 16px;
-  border: 2px solid #0284c7;
+/* ===== 右上角"开始"小按钮（菜单旁，仅三角形图标） ===== */
+.h-start-btn {
+  min-height: 40px; min-width: 40px; padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid #0284c7;
   background: linear-gradient(135deg, #0369a1 0%, #0284c7 60%, #0ea5e9 100%);
-  color: #e0f2fe; font-size: 18px; font-weight: 800;
-  cursor: pointer;
-  box-shadow: 0 10px 30px rgba(2,132,199,.5), inset 0 1px 0 rgba(255,255,255,.2);
-  letter-spacing: 1px;
-  animation: centerStartPulse 1.6s ease-in-out infinite;
+  color: #e0f2fe; font-size: 15px; font-weight: 800;
+  line-height: 1; cursor: pointer;
+  box-shadow: 0 2px 10px rgba(2,132,199,.45);
+  backdrop-filter: blur(4px);
+  transition: all .15s ease-out;
   touch-action: manipulation;
 }
-.center-start:hover { filter: brightness(1.08); }
-.center-start:active { transform: translate(-50%, -50%) scale(0.98); }
-
-/* ===== 移动端：中央"开始本波"大按钮挡住画布触摸热区，玩家点空地放塔时极易误触按钮
-   → 强制提前进入 RESERVE（无法继续放满 5 次）。手机/触屏改为贴画布底部的小按钮 ===== */
-@media (max-width: 600px), (pointer: coarse) {
-  .center-start {
-    left: 50%; top: auto; bottom: 6px;
-    transform: translateX(-50%);
-    min-width: auto; padding: 8px 18px;
-    font-size: 14px; border-radius: 12px;
-  }
-  .center-start:active { transform: translateX(-50%) scale(0.97); }
-}
-@keyframes centerStartPulse {
-  0%, 100% { box-shadow: 0 10px 30px rgba(2,132,199,.5), inset 0 1px 0 rgba(255,255,255,.2); }
-  50%      { box-shadow: 0 10px 40px rgba(14,165,233,.8), 0 0 24px rgba(56,189,248,.5), inset 0 1px 0 rgba(255,255,255,.25); }
-}
+.h-start-btn:hover { filter: brightness(1.12); }
+.h-start-btn:active { transform: scale(0.95); }
 
 /* ===== 进化配方条（从 HUD 改成画布上方 overlay） ===== */
 .evolve-ribbon {

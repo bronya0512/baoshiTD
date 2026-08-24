@@ -1,14 +1,14 @@
 # 宝石TD V4 全量功能规范
 > 基线版本：V3-6（已交付：账号云档+SSO+乐观锁+Boss波+阶段操作细化+autosave+塔策略切换+塔UI精细化/全局DPS统计+RAF永久断链修复）
-> 目标版本：V4.0（七大模块，V4-1 至 V4-7）
-> 生成时间：2026-08-22
+> 目标版本：V4.0（十一大模块，V4-1 至 V4-11，增量：能量技能 V4-8 / 伤害三分支+元素配置化 V4-9 / 数值对齐+稀有度成长 V4-10 / 塔 UI 与保留合成流程重构 V4-11 / UI 收纳 / 移动端热修 / Docker 部署热修）
+> 生成时间：2026-08-22 （最后同步补丁：2026-08-24 提交 bafe141 + ae67bd8 + V4-10/V4-11 未提交工作区）
 
 ---
 
 ## Overview
 
 ### Summary
-V4 在 V3-6 已成熟的单地图塔防核心上，横向扩展 7 大系统：
+V4 在 V3-6 已成熟的单地图塔防核心上，横向扩展 9 大系统：
 1. **V4-1 难度分级 + 多地图选择入口**：在现有 MENU 页面新增「难度」（普通/困难/噩梦）+「地图」（后续 V4-2 多图切换）两项入口，为后续模块提供全局难度倍率/地图ID上下文。
 2. **V4-2 多地图 + 环境效果**：从单图（mapId=1）升级到 3 张风格不同的地图（经典草原/熔岩洞穴/冰霜高地），每张图配独立路径、地形、波次、以及「环境 Buff」（熔岩减速 10%、冰霜减敌人攻速 15%、草原塔射程 +5%）。
 3. **V4-3 塔合成 / 进化系统**：相邻/同稀有度的 3 座真塔可合成 1 座更高稀有度塔（common→rare→epic→legendary），保留 3 座中基础数值最高的 + 1 个 Buff 加成。合成产物立即回到战场。
@@ -20,6 +20,10 @@ V4 在 V3-6 已成熟的单地图塔防核心上，横向扩展 7 大系统：
    - **后端全局排行榜**：新增 MySQL `leaderboard_records` 表 + Redis ZSet 热榜，提供 API `/api/config/maps/:id/waves` 扩展外新增 `/api/lb?mapId=&difficulty=&type=highestWave|fastestClear|totalKills&page=`。
    - **Spine 动画接入**：用已有 `assets/spine/` 资源 + `web/vendor/spine-webgl.js`，把 Canvas 2D 绘制升级为 WebGL + Spine（塔受击晃动/击杀特效 / 敌人行走/死亡动画 / BOSS 技能特效），无资源时降级 Canvas 2D。
    - **移动端适配**：canvas 尺寸监听 viewport 并强制 16:9；触屏双指缩放；触屏「长按 = 点塔」「双击 = 放置候选塔」；按钮尺寸 ≥44px。
+8. **V4-8 塔能量 + 技能系统（解耦）**：每塔独立 `energyCfgId` 能量配置（能量上限 / 攻击加能 / 秒加能），和 `skillId` 技能配置（伤害倍率 / 穿甲 / 法穿 / 减速）**解耦**，不同塔可以共用相同技能；能量满 → 下一次攻击释放技能（默认：双倍伤害）。
+9. **V4-9 伤害类型三分支 + 元素数值全部配置化**：塔新增 `damageType ∈ {physical|magic|true}` 三类型，物理=减甲(减法点数)、魔法=法抗百分比减免、真实=无视双抗；敌人新增 `magicResist(0~100)`；元素减速 / 掉率从 gems.json `elements[].baseBonus` 读取，消灭 4 处前端硬编码。
+10. **V4-10 数值对齐 + 塔成长=稀有度成长 + L3 金币解锁**：8 座宝石塔 × 6 档稀有度（common→ultimate）全量对齐《数值.txt》；换算规则（射程 400px=2 格 / 减速 60=5% / 光环 200=20%）；塔成长从「等级×加成」改为「稀有度档位取 levels[i]」；L3 特效解锁改为金币付费（120 金）；战斗特效（减速/毒 DoT/减甲 DEBUFF/多重射击/光环）全部按 towers.json 配置生效。
+11. **V4-11 塔 UI 与保留/合成流程重构**：A 类升级整体下线；保留/合成/进化入口从 HUD 三按钮收敛到塔详情弹窗，且**有可用操作才显示按钮**；放满 5 塔后塔详情出现「保留本塔」按钮（保留 → 其余候选变墙直接开战）；放满未保留时允许合成/进化（候选塔可作材料），确认后其余本波候选塔变墙直接开战；开始按钮移至菜单旁缩小为 ▶ 三角图标。
 
 ### Purpose
 V3 已把「单局核心循环」做稳定。V4 要解决：
@@ -38,7 +42,7 @@ V3 已把「单局核心循环」做稳定。V4 要解决：
 
 ---
 
-## Goals (G1–G10)
+## Goals (G1–G12)
 - **G1（难度+地图入口）**：MENU 阶段玩家能从 3 种难度 × N 张地图的组合中选开局选项，难度倍率作用到本整局（敌人HP/速度/奖励）。
 - **G2（多地图 + 环境）**：3 张新地图提供不同路径、不同出怪顺序、全局环境 Buff；不共用存档（每图独立存档）。
 - **G3（塔合成）**：玩家点「合成」按钮选择 3 座相邻同稀有度真塔 → 合成高一级塔，3 座原塔拆除。
@@ -48,7 +52,11 @@ V3 已把「单局核心循环」做稳定。V4 要解决：
 - **G7（天赋树）**：登录账号跨局累计天赋点，3 条线 × 15 级可配；当前天赋组合对新开局实时生效（塔伤害基础加成等）。
 - **G8（排行榜）**：通关结局（WIN / LOSE）自动上报最高波 / 最快通关时间 / 总击杀；登录用户可在排行榜 Tab 查看 top100 + 自己排名。
 - **G9（Spine 动画）**：塔/怪/特效至少 6 个 Spine 动画接入（塔 idle/attack；敌人 walk/death；Boss skillCast）；无 Spine 资源时 Canvas 2D 降级模式 100% 可玩。
-- **G10（移动端）**：viewport 宽度 ≤ 768px 时，画布自动缩放、stat chip 换行堆叠；触屏手势（点击/长按/双击）全部可操作一局。
+- **G10（移动端 · 2026-08-24 热修）**：viewport 宽度 ≤ 768px 时，画布自动缩放、stat chip 换行堆叠；触屏手势（点击/长按/双击）全部可操作一局。**触屏滑动判定阈值 ≥ 25px**（电容屏微抖 10~20px 不会把有效 tap 误判为滑动）；**中央"开始本波"大按钮在手机/触屏上强制贴画布底部（bottom 6px，小尺寸）**，桌面中央保持原状，避免挡放塔热区误触提前进 RESERVE。
+- **G11（能量 + 技能解耦）**：每塔从配置取独立 energyCfg（上限/攻击加能/秒加能）与 skillCfg（伤害倍率/穿甲/法穿/减速）；能量满 100% 即下一次攻击自动释放技能，UI 塔格底部显示能量条，塔详情显示技能名 + 说明。
+- **G12（伤害类型三分支 + 元素配置化）**：物理/魔法/真实三类型伤害公式 100% 路径一致（弹/crit/double/override 都统一过类型公式，再乘元素抗）；gems.json elements[].baseBonus 是减速 / 掉率加成唯一配置源，缺字段按历史硬编码兜底，配置与实现一一对应。
+- **G13（V4-10 数值对齐 + 稀有度成长）**：8 塔 × 6 档稀有度数值与《数值.txt》一一对应；塔成长完全由实例稀有度档位驱动（levels[i]）；L3 特效 120 金解锁；战斗特效全配置化。
+- **G14（V4-11 操作收敛 + 流程直通）**：塔详情弹窗是保留/合成/进化唯一入口（有可用操作才显示按钮）；放满 5 塔后「保留」或「合成/进化确认」→ 其余候选变墙 → 自动开战，中间无多余弹窗；开始按钮为右上角菜单旁 ▶ 三角小图标。
 
 ## Non-Goals (NG)
 - NG-1：不做多人协同守塔（V5 再规划）。
@@ -68,6 +76,10 @@ V3 已把「单局核心循环」做稳定。V4 要解决：
 - **美术资源复用**：Spine 模型、音效、图片优先复用 `assets/` 已有，不允许新增 >5MB 的外部资源。
 - **性能预算**：80 敌人 + 40 塔同屏时，PC Chrome（i5 + 8G）FPS ≥ 55；移动端 660 处理器 ≥ 30 FPS。
 - **Spine 降级**：若 Spine 资源加载失败 / WebGL 不支持，必须静默退化为 V3 风格 Canvas 2D，不让玩家察觉错误（仅 log 中 warn）。
+- **部署可用性（2026-08-24 新增）**：
+  - 服务端口 `TD_PORT` 环境变量可覆盖，缺省 `:8080`，与 `Dockerfile / docker-compose.yml` 变量声明一致。
+  - Docker build 阶段显式设置 `GOPROXY=https://goproxy.cn,direct`，确保国内环境 `go mod download` 不超时。
+- **UI 收纳 · 极简 HUD（2026-08-24 新增）**：原 HUD 顶栏 + 左右侧栏 **统一收纳到画面右上「☰ 菜单」抽屉**，仅保留 4 个 chip（金币/HP/运气 左上；波次 右上）+ 菜单按钮，把合成/升级/进化/天赋/排行榜/账号/存读档/重开/Buff 列/日志 全部放进抽屉。每波开始期（MENU / PREPARE 放塔后）画面中央显示「▶ 开始第 N 波」按钮，点击后隐藏；手机/触屏改贴底避免挡放塔热区。
 
 ---
 
@@ -331,6 +343,185 @@ V3 已把「单局核心循环」做稳定。V4 要解决：
   - 长按（touchstart 持续 500ms 不移动）→ 视为「点塔开信息弹框」。
   - 双指缩放（pinch）：缩放 canvas CSS 比例，范围 0.5× ~ 1.5×。
 - **按钮 / chip 大小**：所有按钮 CSS 高度 `min-height:44px`，移动端 viewport 下 `@media (max-width: 768px) { #hud .stat { flex-basis:33%; } }` 统计 chip 33% 换行。
+- **移动端热修（bafe141）**：
+  - `touchmove` 滑动 vs tap 判定阈值：`25px`（旧 10px 因手指微抖吞有效 tap）。
+  - 中央「▶ 开始本波」大按钮：`@media (max-width: 600px), (pointer: coarse)` 下强制 `top:auto; bottom:6px; transform: translateX(-50%)`，并缩小为 14px 小胶囊；桌面仍保持居中大按钮。
+- **部署热修（bafe141）**：
+  - Go 后端启动 `port = ":" + os.Getenv("TD_PORT")`，空回退 `:8080`；与 Dockerfile / compose `TD_PORT` 一致。
+  - Dockerfile builder 阶段：`ENV GOPROXY=https://goproxy.cn,direct`，国内网络 go mod 不超时。
+- **UI 收纳热修（2026-08-24 UI 极简）**：
+  - 画面四角 chip：**左上** (金币/HP/运气)、**右上** (波次 + ☰菜单胶囊按钮)，其余 **HUD 顶栏/左右侧栏全部隐藏**。
+  - ☰菜单抽屉：放置 难度+地图 Tab 选择器、合成三按钮（升级/合成/进化）、天赋/排行榜/账号/存读档/重开 6 个系统按钮、全局 Buffs 列表、DPS/塔/墙/击杀读数、操作日志滚动区。遮罩点击 / ESC 均可关闭；菜单与塔详情遮罩都采用半透明毛玻璃背景。
+  - 中央开始按钮：MENU 期「▶ 开始第 1 波」；PREPARE 放塔前不显示（先放塔），放置 ≥1 次后自动出现「▶ 开始第 N 波」，点击隐藏并进入 RESERVE 保留流程。BATTLE/WAVEEND 自动隐藏。
+
+---
+
+### V4-8 塔能量 + 技能系统（独立配置 · 解耦）
+> 前置配置 JSON：`conf/game/energy-cfgs.json`、`conf/game/tower-skills.json`；每塔 `towers.json` 携带 `energyCfgId` 与 `skillId`。
+
+#### FR-8.1 能量配置（每塔独立）
+- `TowerEnergyCfg`：
+  - `id: string`：配置引用键
+  - `energyMax: number`：能量上限（默认 100）
+  - `energyPerAttack: number`：每次射击命中 +N 能量
+  - `energyPerSecond: number`：每秒战斗 tick 全图每塔累加 +N 能量
+- 后端接口：`GET /api/config/energy-cfgs` 返回 `{[id]: TowerEnergyCfg}`
+- **缺省兜底**：塔没填 `energyCfgId` / 配置缺失 → 套用 `normal = {max:100, perAttack:1, perSec:1}`
+
+#### FR-8.2 技能配置（解耦 · 多塔复用）
+- `TowerSkill`：
+  - `id: string`：技能引用键
+  - `name / desc`：中文名 + 一句说明（用于塔详情卡片）
+  - `damageMul: number`：技能激活本次攻击伤害倍率（例 `2.0` = 双倍）
+  - `armorIgnorePct01: number`：物理伤害穿甲比例（0~1；1=完全无视护甲）
+  - `magicResistIgnorePct01: number`：魔法伤害法穿比例（0~1）
+  - `slowMul01: number`：技能命中附加减速百分比（0~1，0=不减速）
+  - `slowTicksSec: number`：减速持续秒
+- 后端接口：`GET /api/config/tower-skills` 返回 `{[id]: TowerSkill}`
+- **缺省兜底**：塔没填 `skillId` → 套 `double_strike = {damageMul:2.0, 其他0}`（保持旧版"双倍"预期）
+
+#### FR-8.3 能量生命周期（per-tower 状态字段）
+- grid 真塔对象新增：
+  - `energy: number` 当前能量（0~energyMax），存档读/写
+  - `skillReady: boolean` 能量是否达到释放阈值（≥ energyMax）
+  - `skillActive: boolean` 技能是否"正等待下一次攻击"释放（为 true 时，下一发子弹携带技能参数，命中后消耗 energy）
+- 能量累计点：
+  1. `battleTick` 每 dt：所有真塔 `energy += energyPerSecond × dt`
+  2. `stepTowers` 每次攻击完成：目标塔 `energy += energyPerAttack`
+  3. `energy >= energyMax` 时：`energy = energyMax`，`skillReady = true`，触发下一次攻击自动消费
+- 技能消费：`fireTowerBullet` 时若 `skillReady && !skillActive` → 设置 `skillActive=true`、子弹携带 `energySkillActive + 4 个技能参数`；命中结算时扣 `energy=0`、`skillActive=false`
+- UI：
+  - 塔格底部画能量条（黄色 0→满 → 蓝色满格 + 金边框）
+  - 塔详情弹框：技能名卡片 + 4 个参数数值 + 当前能量 / 满值百分比
+- **存档**：能量字段写进 save_records.grid；读档缺省按 0 初始化
+
+---
+
+### V4-9 伤害类型三分支 + 元素数值配置化（ae67bd8）
+
+#### FR-9.1 伤害类型契约（每塔三选一）
+- 塔新增 `damageType ∈ {"physical"|"magic"|"true"}`（towers.json damageType 字段）
+- **规范化 & 回退**：前端 `resolveTower()` 与后端都把缺字段 / 非法值 → 统一 `physical`，禁止出现 undefined 行为
+
+#### FR-9.2 敌人新增法抗
+- `EnemyConfig` 新增 `magicResist: float64`（数值 0~100，超限 clamp 到 [0,100]）
+- 旧 armor 语义 **从乘区 x*(1-armor*0.5) 改为减法点数**：**此为破坏性变更，enemies.json 现有小数 armor（如 0.28）需整体重新标定为合理点数（例 common=8~15，BOSS=80~200）**
+
+#### FR-9.3 统一伤害公式（所有路径一致）
+所有攻击路径（普通 / 弹射链最后一跳 / DoubleShot / Crit / finalDamageOverride 预设伤害）**统一过同一套类型公式**：
+
+```
+step1 基础伤害 baseDmg
+  = attack (来自 calcTowerEffective) × buffDamageMul × skillCfg.damageMul
+    或 finalDamageOverride（若有：弹/crit 预设值直接用）
+
+step2 伤害类型公式（三者互斥）
+  - physical: typed = max(1, baseDmg - armorActual)
+      其中 armorActual = enemy.armor × envArmorMul × (1 - skillCfg.armorIgnorePct01)
+      // 含地图环境护甲系数 + 技能穿甲
+      // ⚠ armor = 纯点数减法；保底 1 点伤害避免 0
+  - magic:    typed = baseDmg × (1 - magicResistActual / 100)
+      其中 magicResistActual = clamp(enemy.magicResist, 0, 100)
+                                   × (1 - skillCfg.magicResistIgnorePct01)
+      // 法抗百分比减免；法穿按对方有效抗比例扣
+  - true:     typed = baseDmg  // 无视双抗，跳过 step2 修正
+
+step3 元素抗性（独立维度、三类型都生效）
+  resistMul = 1 - (enemy.resistances[element] ?? 0)
+  finalDamage = clamp(typed × resistMul, 1, Infinity)
+```
+
+**盾抵扣顺序不变**：先 finalDamage → 扣 shield → 扣 hp（与 V4-4 shield 契约兼容）。
+
+#### FR-9.4 元素数值配置化（唯一源：gems.json elements[].baseBonus）
+消灭前端 `td-game.js` 4 处硬编码（ice/poison 减速 / light/dark 掉率加成），统一由：
+```json
+// gems.json -> elements[] 每元素新增 baseBonus 对象
+"elements": [
+  { "id": "ice", "baseBonus": {
+      "slowOnHitPct01": 0.30,
+      "slowOnHitSec":  2.0,
+      "killGemChanceAdd01": 0.0 } },
+  { "id": "light","baseBonus": {
+      "killGemChanceAdd01": 0.15 } }
+  // 其他元素同理
+]
+```
+- loader 新增 `getElementBonus(element)`：**缺字段 / 非法值 → 兜底历史硬编码**（ice 30% 2s / poison 20% 1.5s / light+0.15 / dark+0.10），保证不配置零影响。
+- `isSlowTower` 判定：从 `getElementBonus(element).slowPct > 0` 推导，不再硬编码 `element==='ice'||'poison'`
+- 生效点统一替换：`calcTowerEffective 减速 base` / `damageEnemy 命中减速` / `killEnemy 击杀掉率加成`
+
+#### FR-9.5 UI 反馈
+- 塔详情弹框「伤害」行文字改为：**伤害 130（80）· 物理 / 魔法 / 真实**，带对应类型标签
+- 画布命中数字：三类型颜色区分（物理白、魔法紫、真实金色）
+
+---
+
+### V4-10 数值对齐 + 塔成长=稀有度成长 + L3 金币解锁
+
+#### FR-10.1 数值换算规则（《数值.txt》→ towers.json）
+统一换算契约（唯一源：`conf/game/core/数值.txt`）：
+- **射程**：400px = 2 格 → `attackRange` 单位为格（如 2.5 / 3.0）
+- **减速**：60 = 5% → `slowPct01 = 60/1200`（slow 60 → 0.05，随档位成长 5%→40%）
+- **光环**：200 = 20% → `auraAttackFlat` 固定点数（20~70 随档位成长）
+- 8 座宝石塔 × 6 档稀有度共 48 组数值全部由 towers.json `levels[0..5]` 承载
+
+#### FR-10.2 塔成长 = 稀有度成长（破坏性变更）
+- 塔配置不再按 `cfg.rarity` 分池：**同一宝石塔只有一份配置，稀有度是实例属性**
+- `getTowerLevel(cfg, rarity)`：按 `RARITY_ORDER = [common, rare, epic, legendary, mythic, ultimate]` 索引取 `levelsResolved[i]`；未知/缺档回退第 0 档
+- Roll 塔产出「宝石类型 + 实例稀有度」，数值即时取对应档位（`placeCandidate` 的 `_rollRarity`）
+
+#### FR-10.3 L3 特效解锁 = 金币升级（替代 V4-5 等级升级链）
+- 老的三级升级（等级×40 金、每级 +30%/+10%/+5%）下线；塔等级上限 `LEVEL_MAX = 3`
+- L3 特效解锁按钮在塔详情弹窗，费用固定 `L3_UNLOCK_COST = 120` 金；仅 PREPARE / WAVEEND 阶段、真塔、金币足够时可操作
+
+#### FR-10.4 战斗特效配置化生效点
+按 towers.json 字段在 `td-game.js` 战斗层实现（全部档位成长）：
+- **减速**（蓝宝石）：`slowPct01 + slowSec` 命中减速
+- **毒 DoT**（翡翠）：`poisonDoTDps + poisonDoTSec` 持续魔法伤害、可刷新
+- **减甲 DEBUFF**（紫水晶）：`armorShredPoints + armorShredSec` 削甲全队受益
+- **多重射击**：`multiShotCount` 一次攻击多目标
+- **光环**（蛋白石）：`auraRadiusCells + auraAttackFlat` 周友塔攻击加成
+
+---
+
+### V4-11 塔 UI 与保留/合成流程重构
+
+#### FR-11.1 塔详情弹窗操作收敛（A 类升级下线）
+- **A 类升级（2 塔升稀有度保持类型）整体下线**：HUD 升级按钮移除，mergeTest 调试入口同步移除
+- 保留 / 合成 / 进化入口从 HUD 三按钮收敛到**塔详情弹窗**（点击塔打开）
+- **按钮显隐规则 = 有可用操作才显示**（不能操作不显示）：
+  - `ti-fusion`：合成窗口开启 && `_canFusionFrom(idx)`（本塔 + 另 2 座「同稀有度·不同类型」非特殊塔可凑齐）
+  - `ti-evolve`：合成窗口开启 && `_canEvolveFrom(idx)`（存在配方使本塔可作材料且其余材料可凑齐）
+  - `ti-reserve`：合成窗口开启 && 该格是本波候选塔（T_CAND）
+  - `ti-upgrade`（L3 特效解锁）：真塔 && PREPARE/WAVEEND && 金币 ≥ 120
+
+#### FR-11.2 保留流程（原 RESERVE 弹窗下线）
+- **合成窗口**定义：`PREPARE 阶段 && placementUsed >= placementTotal(5)`（放满 5 塔、尚未保留）
+- 放满 5 塔后点击任意候选塔 → 塔详情显示「📌 保留本塔」；点击后：
+  1. 保留塔 T_CAND → T_TOWER；其余候选逐个 `to_wall`（terrainGate，失败整体回滚）
+  2. `candidates` 清空 → 直接 `phase = BATTLE` 开战（不再经过 RESERVE 弹窗）
+- 未放满 5 塔时塔详情四个操作按钮全部隐藏
+
+#### FR-11.3 合成/进化流程（放满未保留窗口内可操作）
+- 窗口内本波候选塔（T_CAND）**可作为合成/进化材料**（`_mergeSelectablePool` 含 T_CAND）
+- 从塔详情点「合成/进化」→ 进入对应模式且**本塔预选为第一材料**（`_tiAction`）
+- 选满 3 座 → 校验 → 确认弹窗 → 确认后（`onMergeModalConfirm`）：
+  1. 产物落在最后素材格（既有规则）；素材塔移除
+  2. **其余本波候选塔全部变墙**（`_resolveRemainingCandidatesToWalls`：逐个 `to_wall`，封路则退化为草地保证路径可走）
+  3. 直接 `phase = BATTLE` 开战，msg「合成进化完成，其余本波塔已变墙，战斗开始！」
+
+#### FR-11.4 开始按钮改造
+- 从画布中央大按钮移至**右上角菜单按钮旁**（`#hud-top-right` 内，`#btn-menu` 左侧）
+- 缩小为圆形 **▶ 三角图标、无文字**（`.h-start-btn`，min 40×40px）
+- 显隐：MENU / WIN / LOSE 显示；PREPARE / BATTLE / WAVEEND 隐藏（PREPARE 引导语指向塔详情操作）
+
+#### FR-11.5 合成产物稀有度修复（bug fix）
+- B 类合成产物稀有度必须 = `outputRarity`（`nextRarityUp` 结果，如 common×3 → rare），**不得取 `cfg.rarity`（配置基础稀有度恒为 common）**——V4-10 稀有度是实例属性后的连带修正
+
+#### FR-11.6 工程配套
+- 静态资源引用统一带 `?v=` 版本参数（td.css / 4 个 JS），杜绝浏览器旧缓存导致的"页面旧代码"问题
+- mergeTest 调试接口新增：`placeCandidates(n)`（走 placeCandidate 真实放置）、`clickCell(idx)`（模拟 canvas 点击走 onCanvasClick）、`towerModalState()`（弹窗 + 四按钮可见性快照）
 
 ---
 
@@ -341,6 +532,8 @@ V3 已把「单局核心循环」做稳定。V4 要解决：
 - **NFR-4 日志可追溯**：V4 每个新系统加独立 log tag：[DIFFICULTY]/[MAPx]/[MERGE]/[BOSS-SKILL]/[LEVEL-BRANCH]/[SHOP]/[TALENT]/[LB]/[SPINE]/[MOBILE]；错误等级 e/w/i 按 V3 惯例。
 - **NFR-5 Spine 降级**：无论 Spine 失败什么原因，Canvas 2D 必须能继续玩，FPS 不低于 NFR-1。
 - **NFR-6 首屏加载**：`/td` 首屏 DOMContentLoaded → applyCfg resolve ≤ 3.5s（含后端 config 8 个请求 + fallback 兜底失败时间）。
+- **NFR-7 能量/技能配置兼容性**：`/api/config/energy-cfgs` 与 `/api/config/tower-skills` 缺失单字段时，前端 fallback 不报错；towers.json 缺 energyCfgId/skillId/ damageType 三字段 → 仍能开局，默认 normal/double_strike/physical。
+- **NFR-8 伤害类型路径一致性**：普通攻击 / 弹射链 / double_shot / crit / finalDamageOverride 五条路径的最终伤害，必须有同一套类型公式结果（单测 10 条 10/10 用例通过，见 ae67bd8 提交验证）。
 
 ---
 
@@ -374,9 +567,41 @@ V3 已把「单局核心循环」做稳定。V4 要解决：
 - **AC-15（商店金币不足）**：WAVEEND，金币=30 → 抽 Buff 按钮 disabled 且文字灰色。
 - **AC-16（天赋跨局生效）**：账号天赋 atk1 已点亮 → 新开局任意塔 calcTowerEffective().eff.damage / 未点亮账号同塔 damage ≥ 1.05（±0.01）。
 - **AC-17（排行榜提交+查询）**：通关 WIN 结局后 1s 查 /api/lb?mapId=1&difficulty=normal → top1 含 uid 且 score_highestWave==waveIndex。
-- **AC-18（移动端点击）**：移动端 viewport 模拟宽度 414px（iPhone XR）→ canvas 渲染高度 ≤ window.innerHeight*0.9；触屏 1 次「点击」同 canvas click 逻辑（能放塔）。
+- **AC-18（移动端点击 · 2026-08-24 热修）**：
+  - (a) 移动端 viewport 模拟宽度 414px（iPhone XR）→ canvas 渲染高度 ≤ window.innerHeight*0.9；触屏 1 次「点击」同 canvas click 逻辑（能放塔）。
+  - (b) **滑动阈值 25px**：touchstart→touchend 在 X/Y 位移 15px（>旧10，<新25）之间 → 仍被识别为有效 tap（合成 onCanvasClick 触发）；位移 30px+ 才判为滑动不触发。
+  - (c) **中央开始按钮不挡放塔**：`@media (pointer: coarse)` 下 `.center-start` 的 `getBoundingClientRect().top` 必须 >= canvas 底-32px（贴画布底部），且桌面浏览器（pointer: fine）下仍 `top=50%` 居中。
 - **AC-19（Spine 降级 Canvas 2D）**：手动把 spine-webgl.js 暂时重命名 → 页面刷新不报错；仍能正常 5 塔放 + 保留 + 战斗。
 - **AC-20（v3 存档读档兼容）**：加载一份 v3-6 没有 `level/rollEffect/difficulty/mapId` 字段的 save.json → readArchive 不抛异常；开局所有塔 level=0 rollEffect=null，difficulty=normal mapId=1。
+- **AC-21（能量系统 · 加能 & 触发）**：构造 emptyCfgId 塔（fallback normal：max 100 / perAtk 1 / perSec 1），在 state.running 下 stepBattle 50 秒 + 攻击 50 次 = energy≥100 → `skillReady===true`；下一次 fireTowerBullet 产生的子弹必带 `energySkillActive=true` 且命中瞬间 energy 清零。
+- **AC-22（技能解耦 · per-tower 配置生效）**：取两座不同塔 T1(energyCfgId=fast, skillId=heavy_strike), T2(energyCfgId=slow, skillId=frost_explosion)
+  - T1.energyMax == fastCfg.max，T2.fireTowerBullet 携带技能参数 frost（slowMul / slowTicksSec 与配置一致 → 命中 2 秒内 enemy.slowPct≥ frost.slowMul-0.02）
+- **AC-23（部署端口 · TD_PORT 生效）**：启动进程时 env TD_PORT=9090 → `netstat` / HTTP GET `:9090/api/health` 200，同时 `:8080` 无监听。
+- **AC-24（伤害类型三分支公式 · ae67bd8 单测 10/10 等价）**：
+  - 物理塔 (armorIgnore=0) attack=100 打 armor=20 抗 0 → finalDmg≈80
+  - 物理塔 + armorIgnorePct01=1.0 打 armor=20 → finalDmg≈100（穿甲）
+  - 魔法塔 attack=100 打 magicResist=50 → 50
+  - 魔法塔 magicResistIgnore=0.5 打 magicResist=80 → 100 × (1 - 40/100) = 60
+  - 真实塔 attack=100 打 armor=100/magicResist=100 → 100（无视双抗）
+  - 元素抗性叠加：物理 100 × resistances.fire=0.3 → final=70
+  - 非法 damageType / 缺字段 → 全部按 physical 计算（与 attack×1-armor 公式一致）
+  - finalDamageOverride=200 路径：三种类型结果同样按类型公式修正，且仍乘元素抗。
+- **AC-25（UI 收纳 · 极简 HUD）**：页面 applyCfg 完成后：
+  - (a) 画面左上区域 chip：`.hud-top.left` 含金币 / 生命 / 运气 3 项，`.hud-top.right` 含波次 + ▶开始按钮 + ☰菜单按钮（V4-11）。
+  - (b) 原 `#hud / #left-panel / #right-panel` 要么 DOM 不存在，要么 CSS 视觉隐藏（`.h-hidden` 或 `display:none`）。
+  - (c) 点 ☰菜单 → `.side-menu.open === true` 且有 `.menu-mask` 半透明遮罩（mask 点击或 ESC 均可关闭）。
+  - (d) MENU phase 立即展示开始按钮（V4-11 起：`#hud-top-right` 内 `.h-start-btn` ▶ 三角图标无文字，替代旧 `.center-start` 中央大按钮）；点击后进入 PREPARE，按钮隐藏；放塔期间不再出现（保留/合成入口收敛到塔详情弹窗，见 AC-28）。
+  - (e) 塔详情 modal + 菜单 modal 的遮罩背景均 rgba alpha<0.3 且带 blur（毛玻璃半透明而非完全遮挡）。
+- **AC-26（元素数值配置化 · 兜底不零）**：手动把 gems.json 里 ice/poison/light/dark 4 个 baseBonus 字段全部删除后 reload → applyCfg 不抛异常，`getElementBonus('ice').slowPct`=0.30 且 `slowSec`=2.0（硬编码兜底生效）。
+- **AC-27（V4-10 稀有度成长 + L3 金币解锁 + 战斗特效）**：
+  - (a) `getTowerLevel(蓝宝石cfg, 'rare')` 返回 levels[1]（baseDamage=4, slowPct01=0.075）；`getTowerLevel(cfg, 'ultimate')` 返回 levels[5]（slowPct01=0.40）。
+  - (b) PREPARE 放 1 座真塔金币=200 → 塔详情「解锁 L3 特效」按钮可见且文案含「-120 金」；金币=50 时按钮不显示。
+  - (c) 战斗特效：蓝宝石命中后 2 秒内 enemy 减速生效；翡翠命中后出现 poison DoT tick；紫水晶命中后 enemy armorActual 下降；蛋白石周围 2 格友塔 attack 提升 auraAttackFlat。
+- **AC-28（V4-11 塔详情操作收敛 + 保留/合成变墙开战 · 2026-08-24 浏览器验证通过）**：
+  - (a) **未放满隐藏**：PREPARE 只放 1 座候选塔 → 点击它打开塔详情，`ti-fusion/ti-evolve/ti-reserve/ti-upgrade` 四按钮全部 `display:none`。
+  - (b) **保留流程**：放满 5 塔后点击候选塔 → 详情显示「保留本塔」（其余按钮按可用性）→ 点击后：弹窗关闭、`phase=BATTLE`、`candidates.length=0`、其余 4 座候选塔格变墙。
+  - (c) **合成变墙开战**：放满 5 塔 + 场上 3 座同稀有度不同类型真塔 → 点击第一座真塔详情显示「合成」→ 点击进入合成模式（本塔预选①）→ 点满 3 座 → 确认后：产物落在第 3 素材格且 **rarity=rare**（FR-11.5 修复验证）、素材塔清空、其余候选塔变墙、`phase=BATTLE` 直接开战。
+  - (d) **开始按钮**：MENU 阶段 `#btn-start-wave` 可见、textContent='▶'（无文字）、位于 `#hud-top-right` 内 `#btn-menu` 左侧；PREPARE/BATTLE 阶段隐藏。
 
 ### Rubric 型（评分维度，0-2）
 - **R-1 复玩性（0-2）**：

@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>宝石TD v2</title>
-  <link rel="stylesheet" href="/web/css/td.css" />
+  <link rel="stylesheet" href="/web/css/td.css?v=20260824e" />
 </head>
 <body>
   <div id="app" class="app-v2">
@@ -23,14 +23,12 @@
           <div class="h-chip h-luck" title="运气等级"><span class="h-icon">🍀</span>Lv.<span id="stat-luck" class="h-val">1</span></div>
         </div>
 
-        <!-- ===== Overlay HUD: 右上角 波次 + 菜单按钮 ===== -->
+        <!-- ===== Overlay HUD: 右上角 波次 + 开始(三角) + 菜单按钮 ===== -->
         <div id="hud-top-right" class="hud-overlay hud-top-right">
           <div class="h-chip h-wave" title="当前波次 / 总波次"><span class="h-icon">🌊</span><span id="stat-wave" class="h-val">0 / 0</span></div>
-          <button id="btn-menu" class="h-menu-btn" type="button" title="游戏菜单（升级 / 合成 / 进化 / 天赋 / 排行榜 / 存档 等）" aria-haspopup="true" aria-expanded="false">☰ 菜单</button>
+          <button id="btn-start-wave" type="button" class="h-start-btn hidden" title="开始">▶</button>
+          <button id="btn-menu" class="h-menu-btn" type="button" title="游戏菜单（合成 / 进化 / 天赋 / 排行榜 / 存档 等）" aria-haspopup="true" aria-expanded="false">☰ 菜单</button>
         </div>
-
-        <!-- ===== Overlay: 中间"开始本波"按钮，PREPARE 阶段玩家可放置 → 点击后从 PREPARE→RESERVE 或 BATTLE ===== -->
-        <button id="btn-start-wave" type="button" class="center-start hidden">▶ 开始第 <span id="center-wave-num">1</span> 波</button>
 
         <!-- ===== Overlay: phase / msg / merge-status (bottom-center) 小条，避免占画面 ===== -->
         <div id="mini-bar" class="hud-overlay hud-bottom-center hidden">
@@ -82,14 +80,10 @@
         </div>
       </section>
 
-      <!-- 合成 / 升级 / 进化 -->
+      <!-- 合成 / 进化（V4-11：入口移至塔详情弹窗，按可操作性显示按钮） -->
       <section class="sm-section">
         <div class="sm-sec-title">塔合成</div>
-        <div class="sm-merge-row">
-          <button id="btn-upgrade" class="btn merge" data-merge="upgrade" title="A类：2 同塔同稀有度 → 升级稀有度（类型不变）">⬆ 升级</button>
-          <button id="btn-merge" class="btn merge"   data-merge="fusion"  title="B类：3 不同塔同稀有度 → 合成高一级随机塔">🧪 合成</button>
-          <button id="btn-evolve" class="btn merge evolve" data-merge="evolve" title="C类：按配方进化出特殊塔（稀有度固定）">💠 进化</button>
-        </div>
+        <div class="sm-hint" style="font-size:12px;color:#94a3b8;line-height:1.6;">放满 5 塔后点击任意防御塔，在详情中选择「合成 / 进化 / 保留」。</div>
         <div id="merge-status-menu" class="merge-status small hidden"></div>
       </section>
 
@@ -268,9 +262,12 @@
           <button data-strategy="high" class="btn ti-strat">血量最多</button>
           <button data-strategy="low"  class="btn ti-strat">血量最少（补刀）</button>
         </div>
-        <!-- V4-5：升级按钮（底部与关闭并列） -->
-        <div class="modal-actions two-col" style="margin-top:14px;">
-          <button id="ti-upgrade" class="btn gold">升到 L1 (40 金)</button>
+        <!-- V4-11：操作按钮区 —— 有可用操作才显示（合成 / 进化 / 保留 / 解锁L3），升级(A类)已移除 -->
+        <div class="modal-actions ti-actions" style="margin-top:14px; display:flex; flex-wrap:wrap; gap:8px; justify-content:center;">
+          <button id="ti-fusion"  class="btn" data-act="fusion"  style="display:none;">🧪 合成</button>
+          <button id="ti-evolve"  class="btn" data-act="evolve"  style="display:none;">💠 进化</button>
+          <button id="ti-reserve" class="btn gold" data-act="reserve" style="display:none;">📌 保留本塔</button>
+          <button id="ti-upgrade" class="btn gold" data-act="l3" style="display:none;">解锁 L3 特效</button>
           <button id="ti-close" class="btn primary">关闭</button>
         </div>
       </div>
@@ -387,10 +384,10 @@
     <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
   </div>
 
-  <script src="/conf/game/td-config-fallback.js"></script>
-  <script src="/web/js/td-config-loader.js"></script>
-  <script src="/web/js/td-animation.js"></script>
-  <script src="/web/js/td-game.js"></script>
+  <script src="/conf/game/td-config-fallback.js?v=20260824e"></script>
+  <script src="/web/js/td-config-loader.js?v=20260824e"></script>
+  <script src="/web/js/td-animation.js?v=20260824e"></script>
+  <script src="/web/js/td-game.js?v=20260824g"></script>
   <script>
     window.addEventListener('DOMContentLoaded', function () {
       TDGame.init({ stage: document.getElementById('stage') })

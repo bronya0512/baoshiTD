@@ -377,6 +377,50 @@
 
 ---
 
+## 【Phase 8: V4-10 数值对齐 + 稀有度成长 + L3 金币解锁】（2026-08-24 实现完成）
+
+### Task 17: towers.json 全量对齐《数值.txt》+ 稀有度档位取值（FR-10.1, FR-10.2, AC-27a）
+- **Status**: done（2026-08-24）
+- **Description**:
+  1. 换算规则落地：射程 400px=2 格、减速 60=5%、光环 200=20%。
+  2. towers.json 8 塔 × 6 档 levels[0..5] 全量重标（common→ultimate）。
+  3. td-config-loader.js：`RARITY_ORDER` 6 档链 + `getTowerLevel(cfg, rarity)` 档位取值 + 缺档回退第 0 档。
+- **Evidence**: 8 塔 × 6 档与 conf/game/core/数值.txt 逐项核对一致；浏览器实测 slow/poison/armorShred/multiShot/aura 生效（AC-27c）。
+
+### Task 18: L3 特效解锁金币化 + 战斗特效实现（FR-10.3, FR-10.4, AC-27b/c）
+- **Status**: done（2026-08-24）
+- **Description**:
+  1. 老三级升级链下线；`L3_UNLOCK_COST = 120` 金、`LEVEL_MAX = 3`。
+  2. 塔详情「解锁 L3 特效」按钮（真塔 + PREPARE/WAVEEND + 金币足够才显示）。
+  3. 战斗层：减速 / 毒 DoT / 减甲 DEBUFF / 多重射击 / 光环 全部按 towers.json 配置生效。
+- **Evidence**: AC-27b/c 浏览器断言通过。
+
+## 【Phase 9: V4-11 塔 UI 与保留/合成流程重构】（2026-08-24 实现完成）
+
+### Task 19: 塔详情操作收敛 + 按钮有操作才显示（FR-11.1, AC-28a）
+- **Status**: done（2026-08-24）
+- **Description**:
+  1. A 类升级整体下线（HUD 按钮 + mergeTest 入口移除）。
+  2. 合成/进化/保留入口收敛到塔详情弹窗；`_mergeWindowOpen/_canFusionFrom/_canEvolveFrom` 显隐判定。
+- **Evidence**: 未放满 5 塔时四按钮全部隐藏（AC-28a 浏览器验证）。
+
+### Task 20: 保留流程 + 合成/进化变墙开战（FR-11.2, FR-11.3, FR-11.5, AC-28b/c）
+- **Status**: done（2026-08-24）
+- **Description**:
+  1. 放满 5 塔后塔详情「保留本塔」：保留塔转真塔、其余候选变墙、直接 BATTLE。
+  2. 合成窗口内候选塔可作材料；`_tiAction` 塔详情发起 + 本塔预选；`_resolveRemainingCandidatesToWalls` 其余变墙（封路退化草地）。
+  3. **bug fix**：合成产物稀有度 = `outputRarity`（nextRarityUp），不再取 cfg.rarity。
+- **Evidence**: AC-28b/c 浏览器端到端验证通过（保留流程 + 合成流程产物 rarity=rare 落第 3 素材格）。
+
+### Task 21: 开始按钮改造 + 工程配套（FR-11.4, FR-11.6, AC-28d）
+- **Status**: done（2026-08-24）
+- **Description**:
+  1. 开始按钮移至 `#hud-top-right` 菜单旁，`.h-start-btn` ▶ 三角图标无文字；MENU/WIN/LOSE 显示、PREPARE/BATTLE 隐藏。
+  2. 静态资源 `?v=` 版本参数；mergeTest 新增 `placeCandidates/clickCell/towerModalState` 调试接口。
+- **Evidence**: AC-28d 浏览器验证通过。
+
+---
+
 ## 【全局 AC / Rubric 追溯映射表】
 
 | AC | 对应任务 |
@@ -405,6 +449,8 @@
 | AC-18 移动端 | Task 16 |
 | AC-19 Spine 降级 | Task 15 |
 | AC-20 v3 存档兼容 | Task 3 / 9 / 4 |
+| AC-27 V4-10 稀有度成长 + L3 金币解锁 + 战斗特效 | Task 17 / Task 18 |
+| AC-28 V4-11 塔详情操作收敛 + 保留/合成变墙开战 | Task 19 / Task 20 / Task 21 |
 | R-1 复玩性 | Task 4/5/6/7/8/12/13 全部上线后人工评审 |
 | R-2 新手引导 | 所有任务完成后补 tooltip 子任务（Spec Approve 后添加） |
 | R-3 性能 | 压力测试脚本在 Task 15 完成后跑 |

@@ -203,6 +203,33 @@
       var attackSpeed = (typeof lv.attackSpeed === 'number' && lv.attackSpeed > 0) ? lv.attackSpeed : 1;
       var eCfg = resolveEnergyCfg(t.energyCfgId);
       var sCfg = resolveSkillCfg(t.skillId);
+      // ===== V4-10：塔成长 = 稀有度成长。levels[0..5] 归一化为 6 档稀有度数值 =====
+      // levelsResolved[i] = 第 i 档稀有度（common/rare/epic/legendary/mythic/ultimate）的最终数值
+      var levelsResolved = [];
+      if (t.levels && t.levels.length) {
+        t.levels.forEach(function (l0) {
+          var sp = (typeof l0.attackSpeed === 'number' && l0.attackSpeed > 0) ? l0.attackSpeed : 1;
+          levelsResolved.push({
+            level:               l0.level || 1,
+            baseDamage:          Number(l0.baseDamage) || 0,
+            rangeCells:          Number(l0.attackRange) || 0,
+            attackInterval:      1 / sp,
+            slowPct01:           (typeof l0.slowPct01 === 'number') ? Math.max(0, Math.min(0.95, l0.slowPct01)) : null,
+            slowSec:             Number(l0.slowSec) || 0,
+            killGemAdd01:        (typeof l0.killGemAdd01 === 'number') ? Math.max(0, Math.min(1, l0.killGemAdd01)) : null,
+            poisonDoTDps:        Number(l0.poisonDoTDps) || 0,
+            poisonDoTSec:        Number(l0.poisonDoTSec) || 0,
+            armorShredPoints:    Number(l0.armorShredPoints) || 0,
+            armorShredSec:       Number(l0.armorShredSec) || 0,
+            auraRadiusCells:     Number(l0.auraRadiusCells) || 0,
+            auraAttackFlat:      Number(l0.auraAttackFlat) || 0,
+            auraAttackSpeedPct01: Number(l0.auraAttackSpeedPct01) || 0,
+            multiShotCount:      Math.max(1, parseInt(l0.multiShotCount || 1, 10) || 1),
+            aoeRadiusCells:      Number(l0.aoeRadiusCells) || 0,
+            aoeDamagePct01:      (typeof l0.aoeDamagePct01 === 'number') ? Math.max(0, Math.min(1, l0.aoeDamagePct01)) : 1
+          });
+        });
+      }
       return Object.assign({}, t, {
         // V4-9 伤害类型规范化：physical（缺省）/ magic / true；非法/缺失值回退 physical
         damageType: (t.damageType === 'magic' || t.damageType === 'true') ? t.damageType : 'physical',
@@ -212,12 +239,24 @@
         attackInterval: 1 / attackSpeed,
         upgradeCost: lv.upgradeCost,
         level: lv.level || 1,
+        levels: (t.levels || []).slice(),
+        levelsResolved: levelsResolved,
         // ===== V4-7 能量 / 技能 解耦：每塔独立挂完整对象（game.js 直接读），同时保留 energyCfgId/skillId 供调试/存档
         energyCfgId: eCfg.id,
         skillId:     sCfg.id,
         energyCfg:   eCfg,
         skillCfg:    sCfg
       });
+    }
+    // ===== V4-10：6 档稀有度链（塔成长 = 稀有度成长）=====
+    var RARITY_ORDER = ['common', 'rare', 'epic', 'legendary', 'mythic', 'ultimate'];
+    function rarityIndex(r) { return RARITY_ORDER.indexOf(r); }
+    // 按稀有度取塔数值：levelsResolved[i] = 第 i 档稀有度的最终数值；未知/缺档回退第 0 档（common）
+    function getTowerLevel(cfg, rarity) {
+      if (!cfg || !cfg.levelsResolved || !cfg.levelsResolved.length) return null;
+      var i = RARITY_ORDER.indexOf(rarity);
+      if (i < 0 || i >= cfg.levelsResolved.length) i = 0;
+      return cfg.levelsResolved[i];
     }
     var gemIdx = {};
     if (cfg.gems && cfg.gems.elements) {
@@ -286,7 +325,11 @@
         (towersArr || []).forEach(function (t) { if (!t.special) pool.push(t); });
       }
       if (!pool.length) pool = towersArr || [];
-      return pool[Math.floor(Math.random() * pool.length)];
+      var picked = pool[Math.floor(Math.random() * pool.length)];
+      // ===== V4-10：塔成长 = 稀有度成长。Roll 出的是"宝石类型 + 实例稀有度" =====
+      // _rollRarity = 本次 Roll 决定的实例稀有度（放置时写入 gridObj.rarity，数值取 levels[rarityIdx]）
+      if (picked) picked._rollRarity = rarity;
+      return picked;
     }
 
     function rollBonusRarityByLuck(level) {
@@ -366,10 +409,14 @@
       nonSpecialByRarity[t.rarity].push(t);
     });
     // 下一稀有度映射（用于 A 升级 / B 合成）
-    var RARITY_UP = { common: 'rare', rare: 'epic', epic: 'legendary' };
+    // V4-10：扩展到 6 档（塔成长 = 稀有度成长：common→…→mythic→ultimate）
+    var RARITY_UP = { common: 'rare', rare: 'epic', epic: 'legendary', legendary: 'mythic', mythic: 'ultimate' };
     function nextRarityUp(r) { return RARITY_UP[r] || null; }
     function pickRandomNonSpecialByRarity(rarity) {
-      var pool = nonSpecialByRarity[rarity] || [];
+      // V4-10：塔池不再按 cfg.rarity 分池（同一宝石塔配置只有一份，稀有度是实例属性）；
+      // 返回随机非特殊塔 cfg，产物稀有度由调用方（B 合成 outputRarity）决定。
+      var pool = [];
+      towersArr.forEach(function (t) { if (!t.special) pool.push(t); });
       if (!pool.length) return null;
       return pool[Math.floor(Math.random() * pool.length)];
     }
@@ -415,6 +462,10 @@
       skillsById: skillsById,
       nextRarityUp: nextRarityUp,
       pickRandomNonSpecialByRarity: pickRandomNonSpecialByRarity,
+      // ===== V4-10：6 档稀有度链 + 按稀有度取塔数值 =====
+      rarityOrder: RARITY_ORDER.slice(),
+      rarityIndex: rarityIndex,
+      getTowerLevel: getTowerLevel,
       enemiesById: enemiesById,
       gemsIndex: gemIdx,
       mapsListById: mapsListById,       // V4-2: 供 currentEnvironment fallback / MENU Tab 读环境

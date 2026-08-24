@@ -1,42 +1,18 @@
 [
   {
     "id": 1,
-    "name": "普通·fire塔",
-    "element": "fire",
-    "rarity": "common",
-    "description": "普通·fire塔",
-    "levels": [
-      {
-        "level": 1,
-        "baseDamage": 48,
-        "attackRange": 2,
-        "attackSpeed": 1.1111111111111112,
-        "cost": 0,
-        "upgradeCost": 0
-      }
-    ],
-    "canTargetFly": true,
-    "isAOE": false,
-    "aoeRadiusPx": 0,
-    "color": "#fc8181",
-    "energyCfgId": "fast",
-    "skillId": "double_strike"
-  },
-  {
-    "id": 2,
-    "name": "普通·ice塔",
+    "name": "蓝宝石",
+    "code": "SAPPHIRE",
     "element": "ice",
     "rarity": "common",
-    "description": "普通·ice塔",
+    "description": "冰系减速塔：命中减速，随稀有度成长（5%→40%，2秒）。",
     "levels": [
-      {
-        "level": 1,
-        "baseDamage": 40,
-        "attackRange": 2,
-        "attackSpeed": 1.3386880856760375,
-        "cost": 0,
-        "upgradeCost": 0
-      }
+      { "level": 1, "baseDamage": 2,   "attackRange": 3.0, "attackSpeed": 1.0,     "cost": 0, "upgradeCost": 0, "slowPct01": 0.05,  "slowSec": 2 },
+      { "level": 2, "baseDamage": 4,   "attackRange": 3.0, "attackSpeed": 1.0,     "cost": 0, "upgradeCost": 0, "slowPct01": 0.075, "slowSec": 2 },
+      { "level": 3, "baseDamage": 6,   "attackRange": 3.0, "attackSpeed": 1.0,     "cost": 0, "upgradeCost": 0, "slowPct01": 0.10,  "slowSec": 2 },
+      { "level": 4, "baseDamage": 8,   "attackRange": 3.0, "attackSpeed": 1.0,     "cost": 0, "upgradeCost": 0, "slowPct01": 0.125, "slowSec": 2 },
+      { "level": 5, "baseDamage": 10,  "attackRange": 3.0, "attackSpeed": 1.0,     "cost": 0, "upgradeCost": 0, "slowPct01": 0.15,  "slowSec": 2 },
+      { "level": 6, "baseDamage": 36,  "attackRange": 3.0, "attackSpeed": 1.6667,  "cost": 0, "upgradeCost": 0, "slowPct01": 0.40,  "slowSec": 2 }
     ],
     "canTargetFly": true,
     "isAOE": false,
@@ -46,43 +22,63 @@
     "skillId": "frost_explosion"
   },
   {
-    "id": 3,
-    "name": "普通·thunder塔",
-    "element": "thunder",
+    "id": 2,
+    "name": "钻石",
+    "code": "DIAMOND",
+    "element": "light",
     "rarity": "common",
-    "description": "普通·thunder塔",
+    "description": "纯物理输出塔：无特效，伤害随稀有度爆发式成长。",
     "levels": [
-      {
-        "level": 1,
-        "baseDamage": 40,
-        "attackRange": 2.3,
-        "attackSpeed": 1.1111111111111112,
-        "cost": 0,
-        "upgradeCost": 0
-      }
+      { "level": 1, "baseDamage": 5,   "attackRange": 2.5, "attackSpeed": 1.0,    "cost": 0, "upgradeCost": 0, "killGemAdd01": 0 },
+      { "level": 2, "baseDamage": 10,  "attackRange": 2.5, "attackSpeed": 1.0,    "cost": 0, "upgradeCost": 0, "killGemAdd01": 0 },
+      { "level": 3, "baseDamage": 20,  "attackRange": 2.5, "attackSpeed": 1.0,    "cost": 0, "upgradeCost": 0, "killGemAdd01": 0 },
+      { "level": 4, "baseDamage": 60,  "attackRange": 2.5, "attackSpeed": 1.0,    "cost": 0, "upgradeCost": 0, "killGemAdd01": 0 },
+      { "level": 5, "baseDamage": 120, "attackRange": 2.5, "attackSpeed": 1.0,    "cost": 0, "upgradeCost": 0, "killGemAdd01": 0 },
+      { "level": 6, "baseDamage": 780, "attackRange": 2.5, "attackSpeed": 1.4286, "cost": 0, "upgradeCost": 0, "killGemAdd01": 0 }
     ],
     "canTargetFly": true,
     "isAOE": false,
     "aoeRadiusPx": 0,
-    "color": "#f6e05e",
-    "energyCfgId": "fast",
+    "color": "#e2e8f0",
+    "energyCfgId": "slow",
     "skillId": "heavy_strike"
   },
   {
+    "id": 3,
+    "name": "蛋白石",
+    "code": "OPAL",
+    "element": "light",
+    "rarity": "common",
+    "description": "光环支援塔：周围 2 格友塔攻击力 +20~+70（固定点数，随稀有度成长）。",
+    "levels": [
+      { "level": 1, "baseDamage": 1, "attackRange": 2.5, "attackSpeed": 1.0, "cost": 0, "upgradeCost": 0, "killGemAdd01": 0, "auraRadiusCells": 2.0, "auraAttackFlat": 20 },
+      { "level": 2, "baseDamage": 2, "attackRange": 2.5, "attackSpeed": 1.0, "cost": 0, "upgradeCost": 0, "killGemAdd01": 0, "auraRadiusCells": 2.0, "auraAttackFlat": 30 },
+      { "level": 3, "baseDamage": 3, "attackRange": 2.5, "attackSpeed": 1.0, "cost": 0, "upgradeCost": 0, "killGemAdd01": 0, "auraRadiusCells": 2.0, "auraAttackFlat": 40 },
+      { "level": 4, "baseDamage": 4, "attackRange": 2.5, "attackSpeed": 1.0, "cost": 0, "upgradeCost": 0, "killGemAdd01": 0, "auraRadiusCells": 2.0, "auraAttackFlat": 50 },
+      { "level": 5, "baseDamage": 5, "attackRange": 2.5, "attackSpeed": 1.0, "cost": 0, "upgradeCost": 0, "killGemAdd01": 0, "auraRadiusCells": 2.0, "auraAttackFlat": 60 },
+      { "level": 6, "baseDamage": 6, "attackRange": 2.5, "attackSpeed": 1.0, "cost": 0, "upgradeCost": 0, "killGemAdd01": 0, "auraRadiusCells": 2.0, "auraAttackFlat": 70 }
+    ],
+    "canTargetFly": true,
+    "isAOE": false,
+    "aoeRadiusPx": 0,
+    "color": "#f0abfc",
+    "energyCfgId": "fast",
+    "skillId": "double_strike"
+  },
+  {
     "id": 4,
-    "name": "普通·poison塔",
+    "name": "翡翠",
+    "code": "EMERALD",
     "element": "poison",
     "rarity": "common",
-    "description": "普通·poison塔",
+    "description": "毒素 DoT 塔：命中附加每秒魔法伤害（2→128/秒），持续 5 秒可刷新。",
     "levels": [
-      {
-        "level": 1,
-        "baseDamage": 44,
-        "attackRange": 2,
-        "attackSpeed": 1.1111111111111112,
-        "cost": 0,
-        "upgradeCost": 0
-      }
+      { "level": 1, "baseDamage": 2,  "attackRange": 2.5, "attackSpeed": 1.0, "cost": 0, "upgradeCost": 0, "slowPct01": 0, "poisonDoTDps": 2,   "poisonDoTSec": 5 },
+      { "level": 2, "baseDamage": 4,  "attackRange": 2.5, "attackSpeed": 1.0, "cost": 0, "upgradeCost": 0, "slowPct01": 0, "poisonDoTDps": 4,   "poisonDoTSec": 5 },
+      { "level": 3, "baseDamage": 6,  "attackRange": 2.5, "attackSpeed": 1.0, "cost": 0, "upgradeCost": 0, "slowPct01": 0, "poisonDoTDps": 8,   "poisonDoTSec": 5 },
+      { "level": 4, "baseDamage": 8,  "attackRange": 2.5, "attackSpeed": 1.0, "cost": 0, "upgradeCost": 0, "slowPct01": 0, "poisonDoTDps": 16,  "poisonDoTSec": 5 },
+      { "level": 5, "baseDamage": 10, "attackRange": 2.5, "attackSpeed": 1.0, "cost": 0, "upgradeCost": 0, "slowPct01": 0, "poisonDoTDps": 32,  "poisonDoTSec": 5 },
+      { "level": 6, "baseDamage": 12, "attackRange": 2.5, "attackSpeed": 1.0, "cost": 0, "upgradeCost": 0, "slowPct01": 0, "poisonDoTDps": 128, "poisonDoTSec": 5 }
     ],
     "canTargetFly": true,
     "isAOE": false,
@@ -93,462 +89,90 @@
   },
   {
     "id": 5,
-    "name": "普通·light塔",
-    "element": "light",
+    "name": "紫水晶",
+    "code": "AMETHYST",
+    "element": "dark",
     "rarity": "common",
-    "description": "普通·light塔",
+    "description": "减甲 DEBUFF 塔：命中削减目标护甲 2~64 点（持续 3 秒，全队受益）。",
     "levels": [
-      {
-        "level": 1,
-        "baseDamage": 40,
-        "attackRange": 2,
-        "attackSpeed": 1.2210012210012209,
-        "cost": 0,
-        "upgradeCost": 0
-      }
+      { "level": 1, "baseDamage": 2,  "attackRange": 2.5, "attackSpeed": 1.6667, "cost": 0, "upgradeCost": 0, "killGemAdd01": 0, "armorShredPoints": 2,  "armorShredSec": 3 },
+      { "level": 2, "baseDamage": 4,  "attackRange": 2.5, "attackSpeed": 1.6667, "cost": 0, "upgradeCost": 0, "killGemAdd01": 0, "armorShredPoints": 4,  "armorShredSec": 3 },
+      { "level": 3, "baseDamage": 6,  "attackRange": 2.5, "attackSpeed": 1.6667, "cost": 0, "upgradeCost": 0, "killGemAdd01": 0, "armorShredPoints": 8,  "armorShredSec": 3 },
+      { "level": 4, "baseDamage": 8,  "attackRange": 2.5, "attackSpeed": 1.6667, "cost": 0, "upgradeCost": 0, "killGemAdd01": 0, "armorShredPoints": 16, "armorShredSec": 3 },
+      { "level": 5, "baseDamage": 10, "attackRange": 2.5, "attackSpeed": 1.6667, "cost": 0, "upgradeCost": 0, "killGemAdd01": 0, "armorShredPoints": 32, "armorShredSec": 3 },
+      { "level": 6, "baseDamage": 70, "attackRange": 2.5, "attackSpeed": 1.6667, "cost": 0, "upgradeCost": 0, "killGemAdd01": 0, "armorShredPoints": 64, "armorShredSec": 3 }
     ],
     "canTargetFly": true,
     "isAOE": false,
     "aoeRadiusPx": 0,
-    "color": "#faf089",
+    "color": "#9f7aea",
     "energyCfgId": "fast",
-    "skillId": "double_strike"
+    "skillId": "armor_pierce"
   },
   {
     "id": 6,
-    "name": "普通·dark塔",
-    "element": "dark",
+    "name": "海蓝宝石",
+    "code": "AQUAMARINE",
+    "element": "thunder",
     "rarity": "common",
-    "description": "普通·dark塔",
+    "description": "攻速光环塔：周围 2 格友塔攻速 +20%（至臻 +50%），自身攻速随稀有度提升。",
     "levels": [
-      {
-        "level": 1,
-        "baseDamage": 44,
-        "attackRange": 2.2,
-        "attackSpeed": 1.1111111111111112,
-        "cost": 0,
-        "upgradeCost": 0
-      }
+      { "level": 1, "baseDamage": 2,  "attackRange": 2.0, "attackSpeed": 1.0,     "cost": 0, "upgradeCost": 0, "auraRadiusCells": 2.0, "auraAttackSpeedPct01": 0.20 },
+      { "level": 2, "baseDamage": 4,  "attackRange": 2.0, "attackSpeed": 1.1111,  "cost": 0, "upgradeCost": 0, "auraRadiusCells": 2.0, "auraAttackSpeedPct01": 0.20 },
+      { "level": 3, "baseDamage": 8,  "attackRange": 2.0, "attackSpeed": 1.25,    "cost": 0, "upgradeCost": 0, "auraRadiusCells": 2.0, "auraAttackSpeedPct01": 0.20 },
+      { "level": 4, "baseDamage": 16, "attackRange": 2.0, "attackSpeed": 1.4286,  "cost": 0, "upgradeCost": 0, "auraRadiusCells": 2.0, "auraAttackSpeedPct01": 0.20 },
+      { "level": 5, "baseDamage": 24, "attackRange": 2.0, "attackSpeed": 1.6667,  "cost": 0, "upgradeCost": 0, "auraRadiusCells": 2.0, "auraAttackSpeedPct01": 0.20 },
+      { "level": 6, "baseDamage": 80, "attackRange": 2.5, "attackSpeed": 2.0,     "cost": 0, "upgradeCost": 0, "auraRadiusCells": 2.0, "auraAttackSpeedPct01": 0.50 }
     ],
     "canTargetFly": true,
     "isAOE": false,
     "aoeRadiusPx": 0,
-    "color": "#9f7aea",
+    "color": "#76e4f7",
     "energyCfgId": "fast",
-    "skillId": "armor_pierce"
+    "skillId": "double_strike"
   },
   {
     "id": 7,
-    "name": "稀有·fire塔",
+    "name": "红宝石",
+    "code": "RUBY",
     "element": "fire",
-    "rarity": "rare",
-    "description": "稀有·fire塔",
+    "rarity": "common",
+    "description": "溅射 AOE 塔：范围内造成 30%→100% 溅射伤害，半径 1.5→3.5 格。",
     "levels": [
-      {
-        "level": 1,
-        "baseDamage": 72,
-        "attackRange": 2,
-        "attackSpeed": 1.25,
-        "cost": 0,
-        "upgradeCost": 0
-      }
+      { "level": 1, "baseDamage": 4,   "attackRange": 2.5, "attackSpeed": 1.0, "cost": 0, "upgradeCost": 0, "aoeRadiusCells": 1.5,  "aoeDamagePct01": 0.3 },
+      { "level": 2, "baseDamage": 8,   "attackRange": 2.5, "attackSpeed": 1.0, "cost": 0, "upgradeCost": 0, "aoeRadiusCells": 1.75, "aoeDamagePct01": 0.4 },
+      { "level": 3, "baseDamage": 12,  "attackRange": 2.5, "attackSpeed": 1.0, "cost": 0, "upgradeCost": 0, "aoeRadiusCells": 2.0,  "aoeDamagePct01": 0.5 },
+      { "level": 4, "baseDamage": 24,  "attackRange": 2.5, "attackSpeed": 1.0, "cost": 0, "upgradeCost": 0, "aoeRadiusCells": 2.25, "aoeDamagePct01": 0.6 },
+      { "level": 5, "baseDamage": 48,  "attackRange": 2.5, "attackSpeed": 1.0, "cost": 0, "upgradeCost": 0, "aoeRadiusCells": 2.5,  "aoeDamagePct01": 0.7 },
+      { "level": 6, "baseDamage": 150, "attackRange": 2.5, "attackSpeed": 1.0, "cost": 0, "upgradeCost": 0, "aoeRadiusCells": 3.5,  "aoeDamagePct01": 1.0 }
     ],
     "canTargetFly": true,
-    "isAOE": false,
+    "isAOE": true,
     "aoeRadiusPx": 0,
     "color": "#fc8181",
-    "energyCfgId": "normal",
-    "skillId": "double_strike"
+    "energyCfgId": "slow",
+    "skillId": "heavy_strike"
   },
   {
     "id": 8,
-    "name": "稀有·ice塔",
-    "element": "ice",
-    "rarity": "rare",
-    "description": "稀有·ice塔",
-    "levels": [
-      {
-        "level": 1,
-        "baseDamage": 60,
-        "attackRange": 2,
-        "attackSpeed": 1.506024096385542,
-        "cost": 0,
-        "upgradeCost": 0
-      }
-    ],
-    "canTargetFly": true,
-    "isAOE": false,
-    "aoeRadiusPx": 0,
-    "color": "#63b3ed",
-    "energyCfgId": "normal",
-    "skillId": "frost_explosion"
-  },
-  {
-    "id": 9,
-    "name": "稀有·thunder塔",
+    "name": "黄玉",
+    "code": "TOPAZ",
     "element": "thunder",
-    "rarity": "rare",
-    "description": "稀有·thunder塔",
+    "rarity": "common",
+    "description": "多重攻击塔：同时攻击 3 个敌人；至臻射程覆盖全图。",
     "levels": [
-      {
-        "level": 1,
-        "baseDamage": 60,
-        "attackRange": 2.3,
-        "attackSpeed": 1.25,
-        "cost": 0,
-        "upgradeCost": 0
-      }
+      { "level": 1, "baseDamage": 3,   "attackRange": 3.0,  "attackSpeed": 0.7692,  "cost": 0, "upgradeCost": 0, "multiShotCount": 3 },
+      { "level": 2, "baseDamage": 6,   "attackRange": 2.5,  "attackSpeed": 0.7692,  "cost": 0, "upgradeCost": 0, "multiShotCount": 3 },
+      { "level": 3, "baseDamage": 9,   "attackRange": 2.5,  "attackSpeed": 0.7692,  "cost": 0, "upgradeCost": 0, "multiShotCount": 3 },
+      { "level": 4, "baseDamage": 18,  "attackRange": 2.5,  "attackSpeed": 0.7692,  "cost": 0, "upgradeCost": 0, "multiShotCount": 3 },
+      { "level": 5, "baseDamage": 36,  "attackRange": 2.5,  "attackSpeed": 0.7692,  "cost": 0, "upgradeCost": 0, "multiShotCount": 3 },
+      { "level": 6, "baseDamage": 200, "attackRange": 25.0, "attackSpeed": 1.6667,  "cost": 0, "upgradeCost": 0, "multiShotCount": 3 }
     ],
     "canTargetFly": true,
     "isAOE": false,
     "aoeRadiusPx": 0,
     "color": "#f6e05e",
-    "energyCfgId": "normal",
-    "skillId": "heavy_strike"
-  },
-  {
-    "id": 10,
-    "name": "稀有·poison塔",
-    "element": "poison",
-    "rarity": "rare",
-    "description": "稀有·poison塔",
-    "levels": [
-      {
-        "level": 1,
-        "baseDamage": 66,
-        "attackRange": 2,
-        "attackSpeed": 1.25,
-        "cost": 0,
-        "upgradeCost": 0
-      }
-    ],
-    "canTargetFly": true,
-    "isAOE": false,
-    "aoeRadiusPx": 0,
-    "color": "#68d391",
-    "energyCfgId": "normal",
-    "skillId": "armor_pierce"
-  },
-  {
-    "id": 11,
-    "name": "稀有·light塔",
-    "element": "light",
-    "rarity": "rare",
-    "description": "稀有·light塔",
-    "levels": [
-      {
-        "level": 1,
-        "baseDamage": 60,
-        "attackRange": 2,
-        "attackSpeed": 1.3736263736263734,
-        "cost": 0,
-        "upgradeCost": 0
-      }
-    ],
-    "canTargetFly": true,
-    "isAOE": false,
-    "aoeRadiusPx": 0,
-    "color": "#faf089",
-    "energyCfgId": "normal",
-    "skillId": "double_strike"
-  },
-  {
-    "id": 12,
-    "name": "稀有·dark塔",
-    "element": "dark",
-    "rarity": "rare",
-    "description": "稀有·dark塔",
-    "levels": [
-      {
-        "level": 1,
-        "baseDamage": 66,
-        "attackRange": 2.2,
-        "attackSpeed": 1.25,
-        "cost": 0,
-        "upgradeCost": 0
-      }
-    ],
-    "canTargetFly": true,
-    "isAOE": false,
-    "aoeRadiusPx": 0,
-    "color": "#9f7aea",
-    "energyCfgId": "normal",
-    "skillId": "armor_pierce"
-  },
-  {
-    "id": 13,
-    "name": "史诗·fire塔",
-    "element": "fire",
-    "rarity": "epic",
-    "description": "史诗·fire塔",
-    "levels": [
-      {
-        "level": 1,
-        "baseDamage": 105.6,
-        "attackRange": 3,
-        "attackSpeed": 1.4285714285714286,
-        "cost": 0,
-        "upgradeCost": 0
-      }
-    ],
-    "canTargetFly": false,
-    "isAOE": true,
-    "aoeRadiusPx": 40,
-    "color": "#fc8181",
-    "energyCfgId": "slow",
-    "skillId": "heavy_strike"
-  },
-  {
-    "id": 14,
-    "name": "史诗·ice塔",
-    "element": "ice",
-    "rarity": "epic",
-    "description": "史诗·ice塔",
-    "levels": [
-      {
-        "level": 1,
-        "baseDamage": 88,
-        "attackRange": 3,
-        "attackSpeed": 1.721170395869191,
-        "cost": 0,
-        "upgradeCost": 0
-      }
-    ],
-    "canTargetFly": false,
-    "isAOE": true,
-    "aoeRadiusPx": 40,
-    "color": "#63b3ed",
-    "energyCfgId": "slow",
-    "skillId": "frost_explosion"
-  },
-  {
-    "id": 15,
-    "name": "史诗·thunder塔",
-    "element": "thunder",
-    "rarity": "epic",
-    "description": "史诗·thunder塔",
-    "levels": [
-      {
-        "level": 1,
-        "baseDamage": 88,
-        "attackRange": 3.4499999999999997,
-        "attackSpeed": 1.4285714285714286,
-        "cost": 0,
-        "upgradeCost": 0
-      }
-    ],
-    "canTargetFly": false,
-    "isAOE": true,
-    "aoeRadiusPx": 40,
-    "color": "#f6e05e",
-    "energyCfgId": "slow",
-    "skillId": "heavy_strike"
-  },
-  {
-    "id": 16,
-    "name": "史诗·poison塔",
-    "element": "poison",
-    "rarity": "epic",
-    "description": "史诗·poison塔",
-    "levels": [
-      {
-        "level": 1,
-        "baseDamage": 96.80000000000001,
-        "attackRange": 3,
-        "attackSpeed": 1.4285714285714286,
-        "cost": 0,
-        "upgradeCost": 0
-      }
-    ],
-    "canTargetFly": false,
-    "isAOE": true,
-    "aoeRadiusPx": 40,
-    "color": "#68d391",
-    "energyCfgId": "slow",
-    "skillId": "armor_pierce"
-  },
-  {
-    "id": 17,
-    "name": "史诗·light塔",
-    "element": "light",
-    "rarity": "epic",
-    "description": "史诗·light塔",
-    "levels": [
-      {
-        "level": 1,
-        "baseDamage": 88,
-        "attackRange": 3,
-        "attackSpeed": 1.5698587127158556,
-        "cost": 0,
-        "upgradeCost": 0
-      }
-    ],
-    "canTargetFly": false,
-    "isAOE": true,
-    "aoeRadiusPx": 40,
-    "color": "#faf089",
     "energyCfgId": "slow",
     "skillId": "double_strike"
-  },
-  {
-    "id": 18,
-    "name": "史诗·dark塔",
-    "element": "dark",
-    "rarity": "epic",
-    "description": "史诗·dark塔",
-    "levels": [
-      {
-        "level": 1,
-        "baseDamage": 96.80000000000001,
-        "attackRange": 3.3000000000000003,
-        "attackSpeed": 1.4285714285714286,
-        "cost": 0,
-        "upgradeCost": 0
-      }
-    ],
-    "canTargetFly": false,
-    "isAOE": true,
-    "aoeRadiusPx": 40,
-    "color": "#9f7aea",
-    "energyCfgId": "slow",
-    "skillId": "armor_pierce"
-  },
-  {
-    "id": 19,
-    "name": "传说·fire塔",
-    "element": "fire",
-    "rarity": "legendary",
-    "description": "传说·fire塔",
-    "levels": [
-      {
-        "level": 1,
-        "baseDamage": 144,
-        "attackRange": 3,
-        "attackSpeed": 1.6666666666666667,
-        "cost": 0,
-        "upgradeCost": 0
-      }
-    ],
-    "canTargetFly": true,
-    "isAOE": true,
-    "aoeRadiusPx": 56,
-    "color": "#fc8181",
-    "energyCfgId": "slow",
-    "skillId": "double_strike"
-  },
-  {
-    "id": 20,
-    "name": "传说·ice塔",
-    "element": "ice",
-    "rarity": "legendary",
-    "description": "传说·ice塔",
-    "levels": [
-      {
-        "level": 1,
-        "baseDamage": 120,
-        "attackRange": 3,
-        "attackSpeed": 2.0080321285140563,
-        "cost": 0,
-        "upgradeCost": 0
-      }
-    ],
-    "canTargetFly": true,
-    "isAOE": true,
-    "aoeRadiusPx": 56,
-    "color": "#63b3ed",
-    "energyCfgId": "slow",
-    "skillId": "frost_explosion"
-  },
-  {
-    "id": 21,
-    "name": "传说·thunder塔",
-    "element": "thunder",
-    "rarity": "legendary",
-    "description": "传说·thunder塔",
-    "levels": [
-      {
-        "level": 1,
-        "baseDamage": 120,
-        "attackRange": 3.4499999999999997,
-        "attackSpeed": 1.6666666666666667,
-        "cost": 0,
-        "upgradeCost": 0
-      }
-    ],
-    "canTargetFly": true,
-    "isAOE": true,
-    "aoeRadiusPx": 56,
-    "color": "#f6e05e",
-    "energyCfgId": "slow",
-    "skillId": "heavy_strike"
-  },
-  {
-    "id": 22,
-    "name": "传说·poison塔",
-    "element": "poison",
-    "rarity": "legendary",
-    "description": "传说·poison塔",
-    "levels": [
-      {
-        "level": 1,
-        "baseDamage": 132,
-        "attackRange": 3,
-        "attackSpeed": 1.6666666666666667,
-        "cost": 0,
-        "upgradeCost": 0
-      }
-    ],
-    "canTargetFly": true,
-    "isAOE": true,
-    "aoeRadiusPx": 56,
-    "color": "#68d391",
-    "energyCfgId": "slow",
-    "skillId": "armor_pierce"
-  },
-  {
-    "id": 23,
-    "name": "传说·light塔",
-    "element": "light",
-    "rarity": "legendary",
-    "description": "传说·light塔",
-    "levels": [
-      {
-        "level": 1,
-        "baseDamage": 120,
-        "attackRange": 3,
-        "attackSpeed": 1.8315018315018314,
-        "cost": 0,
-        "upgradeCost": 0
-      }
-    ],
-    "canTargetFly": true,
-    "isAOE": true,
-    "aoeRadiusPx": 56,
-    "color": "#faf089",
-    "energyCfgId": "slow",
-    "skillId": "double_strike"
-  },
-  {
-    "id": 24,
-    "name": "传说·dark塔",
-    "element": "dark",
-    "rarity": "legendary",
-    "description": "传说·dark塔",
-    "levels": [
-      {
-        "level": 1,
-        "baseDamage": 132,
-        "attackRange": 3.3000000000000003,
-        "attackSpeed": 1.6666666666666667,
-        "cost": 0,
-        "upgradeCost": 0
-      }
-    ],
-    "canTargetFly": true,
-    "isAOE": true,
-    "aoeRadiusPx": 56,
-    "color": "#9f7aea",
-    "energyCfgId": "slow",
-    "skillId": "armor_pierce"
   }
 ]

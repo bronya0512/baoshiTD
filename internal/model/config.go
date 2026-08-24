@@ -3,6 +3,8 @@ package model
 import "encoding/json"
 
 // TowerLevel 塔等级数据（对应 openapi TowerConfig.levels.item）
+// V4-10：塔成长 = 稀有度成长（6 档：common/rare/epic/legendary/mythic/ultimate），
+// levels[0..5] 分别对应 6 档稀有度的数值；新增特效字段全部按级别配置（零值省略）。
 type TowerLevel struct {
 	Level       int     `json:"level"`
 	BaseDamage  float64 `json:"baseDamage"`
@@ -10,6 +12,20 @@ type TowerLevel struct {
 	AttackSpeed float64 `json:"attackSpeed"` // 次/秒
 	Cost        int     `json:"cost"`
 	UpgradeCost int     `json:"upgradeCost"`
+	// ---- V4-10 每级特效字段（数值表落地） ----
+	SlowPct01            float64 `json:"slowPct01,omitempty"`            // 命中减速比例 0~0.95（塔级配置优先于元素 baseBonus）
+	SlowSec              float64 `json:"slowSec,omitempty"`              // 减速持续秒数
+	KillGemAdd01         float64 `json:"killGemAdd01,omitempty"`         // 击杀额外掉宝率（塔级配置优先于元素 baseBonus）
+	PoisonDoTDps         float64 `json:"poisonDoTDps,omitempty"`         // 毒素 DoT：每秒魔法伤害
+	PoisonDoTSec         float64 `json:"poisonDoTSec,omitempty"`         // 毒素 DoT：持续秒数（可刷新）
+	ArmorShredPoints     float64 `json:"armorShredPoints,omitempty"`     // 护甲削减 DEBUFF 点数（全队受益）
+	ArmorShredSec        float64 `json:"armorShredSec,omitempty"`        // 护甲削减持续秒数
+	AuraRadiusCells      float64 `json:"auraRadiusCells,omitempty"`      // 光环半径（格）
+	AuraAttackFlat       float64 `json:"auraAttackFlat,omitempty"`       // 光环：周围友塔攻击力 +N（固定点数）
+	AuraAttackSpeedPct01 float64 `json:"auraAttackSpeedPct01,omitempty"` // 光环：周围友塔攻速 +N%（0~1）
+	MultiShotCount       int     `json:"multiShotCount,omitempty"`       // 多重攻击：同时攻击目标数（>1 生效）
+	AOERadiusCells       float64 `json:"aoeRadiusCells,omitempty"`       // 溅射半径（格；优先于塔级 aoeRadiusPx）
+	AOEDamagePct01       float64 `json:"aoeDamagePct01,omitempty"`       // 溅射伤害比例 0~1（缺省 1.0 = 全额）
 }
 
 // TowerConfig 塔配置（openapi TowerConfig）
@@ -36,7 +52,7 @@ type TowerConfig struct {
 	EnergyCfgId string `json:"energyCfgId,omitempty"` // 对应 energy-cfgs.json 的 id；空字符串 => 前端用默认 normal
 	SkillId     string `json:"skillId,omitempty"`     // 对应 tower-skills.json 的 id；空字符串 => 前端用默认 double_strike
 	// ---- V4-9 伤害类型：physical（缺省，减法护甲）/ magic（百分比法抗）/ true（无视护甲与法抗） ----
-	DamageType  string `json:"damageType,omitempty"`
+	DamageType string `json:"damageType,omitempty"`
 }
 
 // TowerEnergyCfg 塔能量配置（V4-7 独立文件 conf/game/energy-cfgs.json）
